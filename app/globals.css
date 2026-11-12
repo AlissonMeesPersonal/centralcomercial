@@ -835,3 +835,43 @@
 .churn-matching-row .btn{font-size:11px;min-height:37px}
 .churn-matching-empty{display:flex;align-items:center;gap:9px;color:#6a9a81;font-size:12px;padding:15px}
 @media(max-width:680px){.churn-matching{padding:14px}.churn-matching-row{grid-template-columns:1fr}.churn-matching-row .btn{width:100%}}
+
+
+/* Comparação do churn por intervalo de competências */
+.churn-period-selector{display:flex;gap:18px;align-items:center;justify-content:space-between;
+ background:#fff;border:1px solid #e5eaed;border-radius:12px;padding:15px 17px;margin-bottom:12px}
+.churn-period-selector>div:first-child{display:flex;flex-direction:column;gap:5px;min-width:0}
+.churn-period-selector strong{font-size:12px;color:#35424b;font-weight:760}
+.churn-period-selector span{font-size:10px;color:#8b98a2;line-height:1.5}
+.churn-period-buttons{display:flex;border:1px solid #e0e6eb;border-radius:9px;overflow:hidden;
+ background:#f5f7f8;flex:none;padding:3px;gap:3px}
+.churn-period-buttons button{background:transparent;border:0;border-radius:6px;color:#778690;
+ padding:9px 13px;cursor:pointer;white-space:nowrap;font-size:11px;font-weight:750}
+.churn-period-buttons button.active{background:#252a2e;color:#fff;box-shadow:0 3px 9px #0002}
+.churn-filters .churn-period-month{gap:6px;min-width:130px;display:flex;align-items:center}
+.churn-filters .churn-period-month>span{font-size:11px;font-weight:750;color:#7e8c97;white-space:nowrap}
+.churn-filters .churn-period-month select{min-width:115px}
+.churn-selected-period{display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+ margin:0 0 15px;color:#6c7884;font-size:11px}
+.churn-selected-period>svg{color:#d79151}
+.churn-selected-period strong{font-weight:780;color:#35454f}
+.churn-period-count{margin-left:auto;color:#7d8d97;background:#eff2f4;border-radius:6px;padding:6px 9px;font-size:10px}
+.churn-period-methodology{display:flex;gap:13px;align-items:flex-start;
+ padding:15px 17px;border:1px solid #eadcca;border-left:3px solid #e59c59;
+ border-radius:10px;background:#fffaf5;margin:0 0 17px;color:#93734f}
+.churn-period-methodology>svg{flex:none;margin-top:2px;color:#d28e50}
+.churn-period-methodology strong{font-size:12px;font-weight:770;color:#866240}
+.churn-period-methodology p{font-size:11px;line-height:1.9;margin:8px 0 10px;color:#806f5e}
+.churn-period-methodology b{font-weight:760;color:#684f38}
+.churn-methodology-values{font-size:10px;color:#927e67;border-top:1px solid #f0e4d7;padding-top:9px}
+@media(max-width:1100px){
+ .churn-period-selector{align-items:flex-start;flex-direction:column}
+ .churn-period-buttons{max-width:100%}
+}
+@media(max-width:650px){
+ .churn-period-selector{padding:13px 12px}
+ .churn-period-buttons{width:100%}
+ .churn-period-buttons button{flex:1;padding:9px 7px;font-size:10px}
+ .churn-period-count{margin-left:0;width:100%}
+ .churn-period-methodology{padding:13px}
+}
