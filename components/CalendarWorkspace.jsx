@@ -6,6 +6,7 @@ import {
  Bell,Mail,Filter,Archive,BookOpen
 } from "lucide-react";
 import TeamAttendeePicker from "./TeamAttendeePicker";
+import DateCalendarInput from "./DateCalendarInput";
 
 const KINDS={reuniao:"Reunião",evento:"Evento",treinamento:"Treinamento",visita:"Visita",outro:"Outro compromisso",prazo_demanda:"Prazo de demanda"};
 const STATUSES={agendado:"Agendado",concluido:"Concluído",cancelado:"Arquivado"};
@@ -189,8 +190,8 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
        <label className="cc-agenda-field"><span>Unidade</span><select value={draft.unitId} onChange={e=>setDraft(d=>({...d,unitId:e.target.value}))}><option value="">Toda a rede (gestão)</option>{units.filter(u=>!u.demo&&u.type!=="Matriz").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
       </div>
       <div className="cc-agenda-form-pair">
-       <label className="cc-agenda-field"><span>Início *</span><input type="datetime-local" value={draft.startsLocal} onChange={e=>setDraft(d=>({...d,startsLocal:e.target.value}))}/></label>
-       <label className="cc-agenda-field"><span>Término *</span><input type="datetime-local" value={draft.endsLocal} onChange={e=>setDraft(d=>({...d,endsLocal:e.target.value}))}/></label>
+       <label className="cc-agenda-field"><span>Início *</span><DateCalendarInput type="datetime-local" ariaLabel="Início do compromisso" value={draft.startsLocal} required onChange={e=>setDraft(d=>({...d,startsLocal:e.target.value}))}/></label>
+       <label className="cc-agenda-field"><span>Término *</span><DateCalendarInput type="datetime-local" ariaLabel="Término do compromisso" value={draft.endsLocal} required onChange={e=>setDraft(d=>({...d,endsLocal:e.target.value}))}/></label>
       </div>
       <label className="cc-agenda-field"><span>Local ou link da reunião</span><input value={draft.location} onChange={e=>setDraft(d=>({...d,location:e.target.value}))} placeholder="Sala de reunião, Google Meet, endereço…"/></label>
       <label className="cc-agenda-field"><span>Pauta e observações</span><textarea value={draft.description} onChange={e=>setDraft(d=>({...d,description:e.target.value}))} rows={3} placeholder="Objetivos e assuntos do compromisso"/></label>
