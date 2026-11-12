@@ -45,7 +45,7 @@ export default function UnitsManager({units,onSaved,notify}){
   {access.loading?<div className="panel admin-gate">Verificando autorização…</div>:!access.canEdit?
    <div className="panel admin-gate"><div className="gate-icon"><Lock size={25}/></div><h3>Área administrativa</h3>
     <p>{access.error||(access.signedIn?(access.needsVerification?"Confirme seu e-mail antes de editar.":"Sua conta não possui permissão de edição."):"Entre com sua conta administrativa para editar e adicionar unidades.")}</p>
-    {!access.signedIn?<div className="gate-actions"><a className="btn" href="/auth/sign-in">Entrar</a><a className="btn secondary" href="/auth/sign-up">Criar acesso</a></div>:<a className="btn secondary" href="/auth/sign-in">Trocar conta</a>}
+    {!access.signedIn?<div className="gate-actions"><a className="btn" href="/auth/sign-in">Entrar</a><span className="admin-invite-tip">O acesso exige convite da gestão.</span></div>:<a className="btn secondary" href="/auth/sign-in">Trocar conta</a>}
     <small>Compartilhar o site não concede permissão de edição. Apenas administradores e gestores autorizados podem salvar alterações.</small>
    </div>:
    <>
