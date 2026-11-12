@@ -85,6 +85,10 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  function openDate(date){setSelectedDay(date);setDraft(initialEvent(date));setFormError("");}
  function openEntry(entry){
   if(entry.source==="task"){onOpenTask(entry.original);return;}
+  if(entry.original.kind==="prazo_demanda"&&entry.original.external_task_id){
+   const local=tasks.find(t=>t.id===entry.original.external_task_id);
+   if(local){onOpenTask(local);return;}
+  }
   setDraft(toDraft(entry.original));setFormError("");
  }
  function dateToISOString(value){
@@ -176,6 +180,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    <div className="cc-agenda-modal" role="dialog" aria-modal="true" aria-label={draft.id?"Editar compromisso":"Novo compromisso"}>
     <div className="cc-agenda-modal-head"><div><div className="eyebrow">CENTRAL COMERCIAL • AGENDA</div><h2>{draft.id?"Detalhes do compromisso":"Novo compromisso"}</h2></div><button onClick={()=>!saving&&setDraft(null)} aria-label="Fechar"><X size={20}/></button></div>
     <div className="cc-agenda-modal-content">
+     {draft.kind==="prazo_demanda"&&<div className="cc-agenda-reminder-info">Este prazo pertence a uma demanda. Abra a demanda no navegador em que ela foi criada para alterar os dados.</div>}
      {formError&&<div role="alert" className="validation"><AlertCircle size={17}/>{formError}</div>}
      <div className="cc-agenda-form-grid">
       <label className="cc-agenda-field"><span>Título *</span><input required maxLength={160} value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} placeholder="Ex.: Reunião de resultados da rede"/></label>
@@ -194,7 +199,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
       <div className="cc-agenda-reminder-info"><Bell size={17}/><span>Os avisos visuais aparecem na Central. Assim que o serviço de e-mail estiver configurado, os participantes receberão lembretes no dia anterior e no próprio dia (na rotina diária).</span></div>
      </div>
     </div>
-    <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setDraft(null)} disabled={saving}>Cancelar</button><button className="btn" onClick={save} disabled={saving||(draft.id&&!canEdit(state.events.find(e=>e.id===draft.id)||{}))}><Save size={16}/>{saving?"Salvando…":"Salvar compromisso"}</button></div>
+    <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setDraft(null)} disabled={saving}>Cancelar</button><button className="btn" onClick={save} disabled={saving||draft.kind==="prazo_demanda"||(draft.id&&!canEdit(state.events.find(e=>e.id===draft.id)||{}))}><Save size={16}/>{saving?"Salvando…":"Salvar compromisso"}</button></div>
    </div>
   </div>}
  </section>;
