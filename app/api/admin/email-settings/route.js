@@ -28,11 +28,38 @@ const state=()=>{
  };
 };
 
+// Devolve somente uma categoria de erro do Resend, nunca credenciais nem o
+// corpo bruto recebido do provedor.
+function diagnoseProviderError(status,payload){
+ const rawCode=String(payload?.name||payload?.code||payload?.error||"unknown_error");
+ const code=/^[a-z0-9_-]{1,64}$/i.test(rawCode)?rawCode:"unknown_error";
+ const message=String(payload?.message||"").toLowerCase();
+ if(status===401||code==="invalid_api_key")
+  return {code,error:"O Resend rejeitou a chave de API (HTTP 401). Confirme se a chave cadastrada na Vercel é válida e possui permissão para enviar."};
+ if(status===403&&/(domain|dom[ií]nio|verif|dkim|spf|sender|from address)/i.test(message))
+  return {code,error:"O Resend recusou o domínio ou remetente (HTTP 403). Em Resend → Domains, confirme que 26fit.com.br está verificado e com envio habilitado."};
+ if(status===403&&/(testing|own email|your own|recipient|test emails|only send)/i.test(message))
+  return {code,error:"A conta Resend está limitada a destinatários de teste (HTTP 403). Verifique o domínio de envio e as restrições da conta."};
+ if(status===403)
+  return {code,error:"A chave não possui permissão para este envio (HTTP 403). Confira o domínio permitido na chave e o domínio do remetente."};
+ if(status===422)
+  return {code,error:"O Resend rejeitou os dados do e-mail (HTTP 422). Confira o remetente AUTH_EMAIL_FROM e o domínio verificado."};
+ if(status===429)
+  return {code,error:"O Resend limitou temporariamente as solicitações (HTTP 429). Consulte os limites de envio da conta."};
+ if(status>=500)
+  return {code,error:"O serviço do Resend não conseguiu processar o envio (HTTP "+status+"). Consulte os logs do provedor."};
+ return {code,error:"O Resend recusou o teste (HTTP "+status+", código "+code+"). Confira Resend → Logs → Errors para ver o motivo detalhado."};
+}
+
 export async function GET(){
  try{
   const access=await getAccess();
   if(!isAdmin(access))return reply({error:"Acesso restrito à administração."},access.signedIn?403:401);
-  return reply(state());
+  const last=await database().query(
+   "SELECT status,created_at,provider_http_status,provider_error_code FROM cc_email_test_logs WHERE lower(actor_email)=$1 ORDER BY created_at DESC LIMIT 1",
+   [access.email.toLowerCase()]
+  ).catch(()=>[]);
+  return reply({...state(),lastTest:last[0]||null});
  }catch{return reply({error:"Não foi possível consultar a configuração do e-mail."},503);}
 }
 
@@ -79,17 +106,33 @@ export async function POST(request){
     }),
     signal:AbortSignal.timeout(7000)
    });
-   if(!response.ok)throw Error("Envio rejeitado pelo serviço de e-mail.");
+   if(!response.ok){
+    let providerError={};
+    try{providerError=await response.json();}catch{}
+    const issue=diagnoseProviderError(response.status,providerError);
+    const failure=new Error(issue.error);
+    failure.providerStatus=response.status;
+    failure.providerCode=issue.code;
+    throw failure;
+   }
    const data=await response.json();
-   if(!data?.id)throw Error("Envio não confirmado pelo serviço.");
+   if(!data?.id)throw Error("O Resend não retornou um identificador para este envio. Confira Resend → Logs.");
    await sql.query(
     "UPDATE cc_email_test_logs SET status='sent',provider_id=$2,updated_at=now() WHERE id=$1",
     [id,String(data.id).slice(0,200)]
-   );
+   ).catch(()=>{});
    return reply({ok:true,message:"Mensagem aceita pelo provedor. Confira a caixa de entrada e a pasta de spam.",recipient:access.email});
-  }catch{
-   await sql.query("UPDATE cc_email_test_logs SET status='failed',updated_at=now() WHERE id=$1",[id]).catch(()=>{});
-   return reply({error:"O provedor não confirmou o envio. Verifique a chave, o remetente e a verificação do domínio no Resend."},502);
+  }catch(error){
+   const status=Number.isInteger(error?.providerStatus)?error.providerStatus:null;
+   const code=typeof error?.providerCode==="string"?error.providerCode:null;
+   await sql.query(
+    "UPDATE cc_email_test_logs SET status='failed',provider_http_status=$2,provider_error_code=$3,updated_at=now() WHERE id=$1",
+    [id,status,code]
+   ).catch(()=>{});
+   return reply({
+    error:status?error.message:"Não foi possível confirmar o envio (conexão com Resend ou resposta inválida). Confira os logs do provedor.",
+    providerStatus:status,providerCode:code
+   },502);
   }
  }catch{return reply({error:"Falha ao processar o teste de e-mail."},503);}
 }
