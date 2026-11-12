@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import NetworkChurnImport from "./NetworkChurnImport";
 import ChurnUnitMatching from "./ChurnUnitMatching";
+import {aggregateMonths,totalize,periodApproxChurn,periodGrowth,simpleChurn,rangeKey} from "../lib/churn-period";
 import {
  Activity,ArrowDownRight,ArrowUpRight,BarChart3,Building2,CalendarDays,CheckCircle2,
  ChevronDown,CloudUpload,Download,FileSpreadsheet,Filter,Info,RefreshCcw,
@@ -10,6 +11,7 @@ import {
 
 const fmtCount=n=>new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}).format(Number(n)||0);
 const fmtPct=n=>n===null||!Number.isFinite(n)?"Não informado":new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:2}).format(n)+"%";
+const fmtPctOne=n=>n===null||!Number.isFinite(n)?"Não informado":new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(n)+"%";
 const normal=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const periodNow=()=>new Date().toISOString().slice(0,7);
 const months=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -42,6 +44,9 @@ export default function ChurnDashboard({units=[],accessRole}){
  const fileRef=useRef(null);
  const [year,setYear]=useState(new Date().getFullYear());
  const [month,setMonth]=useState("latest");
+ const [mode,setMode]=useState("periodo");
+ const [fromIndex,setFromIndex]=useState(1);
+ const [toIndex,setToIndex]=useState("latest");
  const [state,setState]=useState("all"),[search,setSearch]=useState("");
  const [detailsId,setDetailsId]=useState(null);
  const [result,setResult]=useState({loading:true,rows:[],batches:[],sourceTotals:[],unmatched:[],sourceImports:[],error:""});
@@ -77,63 +82,105 @@ export default function ChurnDashboard({units=[],accessRole}){
   return all.at(-1)||String(year)+"-"+String(new Date().getFullYear()===year?new Date().getMonth()+1:12).padStart(2,"0");
  },[result.rows,year]);
  const actualMonth=month==="latest"?latest:month;
+ const endIndex=toIndex==="latest"?Number(latest.slice(-2)):Number(toIndex);
+ const fromMonth=rangeKey(year,fromIndex-1);
+ const toMonth=rangeKey(year,Math.max(1,Math.min(12,endIndex))-1);
+ const isRange=mode==="periodo";
+ const validRange=!isRange||fromIndex<=endIndex;
+ const selectedMonths=useMemo(()=>{
+  if(!isRange)return new Set([actualMonth]);
+  if(!validRange)return new Set();
+  return new Set(Array.from({length:endIndex-fromIndex+1},(_,i)=>rangeKey(year,fromIndex+i-1)));
+ },[isRange,validRange,actualMonth,year,fromIndex,endIndex]);
+ const visibleMonths=[...selectedMonths].sort();
+ const selectedPeriodLabel=isRange?(visibleMonths.length
+   ?dateLabel(visibleMonths[0])+" até "+dateLabel(visibleMonths.at(-1)):"Intervalo inválido"):dateLabel(actualMonth);
+ const periodText=isRange?visibleMonths[0]+"_a_"+visibleMonths.at(-1):actualMonth;
  const eligible=useMemo(()=>directory.filter(u=>(state==="all"||u.state===state)&&normal([u.name,u.city,u.state].join(" ")).includes(normal(search))),[directory,state,search]);
  const eligibleSet=useMemo(()=>new Set(eligible.map(u=>u.id)),[eligible]);
- const monthlyRows=useMemo(()=>result.rows.filter(row=>row.month===actualMonth&&eligibleSet.has(row.unit_id)),[result.rows,actualMonth,eligibleSet]);
- const valid=monthlyRows.filter(row=>Number(row.active_start)>0);
- const bases=valid.reduce((a,r)=>a+Number(r.active_start),0);
- const exitsInUnits=valid.reduce((a,r)=>a+Number(r.total_exits??r.cancellations),0);
- const exitsFromUnits=monthlyRows.reduce((a,r)=>a+Number(r.total_exits??r.cancellations),0);
- const cancelledInUnits=monthlyRows.reduce((a,r)=>a+Number(r.cancelled_count??r.cancellations),0);
- const totalNew=monthlyRows.reduce((a,r)=>a+Number(r.enrollments||0),0);
- const totalReact=monthlyRows.reduce((a,r)=>a+Number(r.reactivations||0),0);
- const coverage=monthlyRows.length;
- const sourceTotal=result.sourceTotals.find(r=>r.month===actualMonth);
- const isNetworkView=state==="all"&&!search.trim();
- const networkOfficial=isNetworkView&&sourceTotal;
- const baseShown=networkOfficial?Number(sourceTotal.active_start):bases;
- const exitsShown=networkOfficial?Number(sourceTotal.total_exits_reported):exitsFromUnits;
- const cancelledShown=networkOfficial?Number(sourceTotal.cancelled):cancelledInUnits;
- const summaryRate=rate(baseShown,exitsShown);
- const unmatchedMonth=(result.unmatched||[]).filter(r=>r.month===actualMonth);
- const discrepancy=networkOfficial?Number(sourceTotal.total_exits_reported)-Number(sourceTotal.exits_detail):0;
- const rowById=useMemo(()=>new Map(monthlyRows.map(row=>[row.unit_id,row])),[monthlyRows]);
- const ranked=useMemo(()=>{
-  return eligible.map(u=>({unit:u,row:rowById.get(u.id)||null,rate:rowById.get(u.id)?.churn??null}))
-   .sort((a,b)=>{
-    if(a.rate===null&&b.rate!==null)return 1;
-    if(b.rate===null&&a.rate!==null)return -1;
-    if(a.rate!==null&&b.rate!==null&&a.rate!==b.rate)return b.rate-a.rate;
-    return a.unit.name.localeCompare(b.unit.name,"pt-BR");
-   });
- },[eligible,rowById]);
+ const monthlyRows=useMemo(()=>result.rows.filter(row=>selectedMonths.has(row.month)&&eligibleSet.has(row.unit_id)),[result.rows,selectedMonths,eligibleSet]);
+ const groupedRows=useMemo(()=>aggregateMonths(monthlyRows),[monthlyRows]);
+ const totals=useMemo(()=>totalize(monthlyRows),[monthlyRows]);
+ const coverage=groupedRows.length;
+ const selectedSourceTotals=result.sourceTotals.filter(x=>selectedMonths.has(x.month));
+ const networkOfficial=state==="all"&&!search.trim()&&selectedSourceTotals.length>0;
+ const networkTotals=selectedSourceTotals.reduce((a,x)=>{
+  a.active_start+=Number(x.active_start)||0;
+  a.total_entries+=Number(x.total_entries_reported)||0;
+  a.total_exits+=Number(x.total_exits_reported)||0;
+  a.cancelled_count+=Number(x.cancelled)||0;
+  a.expired+=Number(x.expired)||0;
+  a.dropouts+=Number(x.dropouts)||0;
+  a.suspended+=Number(x.suspended)||0;
+  a.exits_detail+=Number(x.exits_detail)||0;
+  a.source_rows+=Number(x.source_rows)||0;
+  return a;
+ },{active_start:0,total_entries:0,total_exits:0,cancelled_count:0,expired:0,dropouts:0,suspended:0,exits_detail:0,source_rows:0});
+ const mergedTotals=networkOfficial?networkTotals:totals;
+ const baseShown=mergedTotals.active_start;
+ const exitsShown=mergedTotals.total_exits;
+ const entriesShown=mergedTotals.total_entries;
+ const cancelledShown=mergedTotals.cancelled_count;
+ const monthsWithData=isRange?new Set(monthlyRows.map(x=>x.month)).size:1;
+ const officialMonths=isRange?selectedSourceTotals.length:1;
+ const countMonths=networkOfficial?officialMonths:monthsWithData;
+ const summaryRate=periodApproxChurn(baseShown,entriesShown,exitsShown,countMonths);
+ const simpleRate=simpleChurn(baseShown,exitsShown);
+ const growthShown=entriesShown-exitsShown;
+ const growthPercent=periodGrowth(baseShown,entriesShown,exitsShown);
+ const reportPeriodWarning=isRange&&visibleMonths.length>1;
+ const unmatchedMonth=useMemo(()=>{
+  const matching=result.unmatched.filter(r=>selectedMonths.has(r.month));
+  const grouped=new Map();
+  for(const r of matching){
+   const p=grouped.get(r.source_code)||{...r,monthCount:0,active_start:0,total_entries:0,total_exits:0,source_code:r.source_code,source_label:r.source_label};
+   p.monthCount++;
+   p.active_start+=Number(r.active_start)||0;
+   p.total_entries+=Number(r.total_entries)||0;
+   p.total_exits+=Number(r.total_exits)||0;
+   grouped.set(r.source_code,p);
+  }
+  return [...grouped.values()].map(x=>({...x,churn:periodApproxChurn(x.active_start,x.total_entries,x.total_exits,x.monthCount)}));
+ },[result.unmatched,selectedMonths]);
+ const discrepancy=networkOfficial?networkTotals.total_exits-networkTotals.exits_detail:0;
+ const rowById=useMemo(()=>new Map(groupedRows.map(row=>[row.unit_id,row])),[groupedRows]);
+ const ranked=useMemo(()=>eligible.map(u=>{
+  const row=rowById.get(u.id)||null;
+  return {unit:u,row,rate:row?.churn??null};
+ }).sort((a,b)=>{
+  if(a.rate===null&&b.rate!==null)return 1;
+  if(b.rate===null&&a.rate!==null)return -1;
+  if(a.rate!==null&&b.rate!==null&&a.rate!==b.rate)return b.rate-a.rate;
+  return a.unit.name.localeCompare(b.unit.name,"pt-BR");
+ }),[eligible,rowById]);
  const stateMetrics=useMemo(()=>{
   const items=[];
   for(const uf of states){
    const stateUnits=directory.filter(u=>u.state===uf);
    const ids=new Set(stateUnits.map(u=>u.id));
-   const records=result.rows.filter(r=>r.month===actualMonth&&ids.has(r.unit_id));
-   const validRows=records.filter(r=>Number(r.active_start)>0);
-   const b=validRows.reduce((v,r)=>v+Number(r.active_start),0),c=validRows.reduce((v,r)=>v+Number(r.cancellations),0);
-   items.push({state:uf,count:stateUnits.length,measured:records.length,base:b,cancelled:c,rate:rate(b,c)});
+   const records=result.rows.filter(r=>selectedMonths.has(r.month)&&ids.has(r.unit_id));
+   const b=totalize(records);
+   const n=new Set(records.map(r=>r.month)).size;
+   items.push({state:uf,count:stateUnits.length,measured:new Set(records.map(r=>r.unit_id)).size,
+    base:b.active_start,exits:b.total_exits,rate:periodApproxChurn(b.active_start,b.total_entries,b.total_exits,n)});
   }
   return items.sort((a,b)=>(b.rate??-1)-(a.rate??-1));
- },[directory,states,result.rows,actualMonth]);
+ },[directory,states,result.rows,selectedMonths]);
  const trends=useMemo(()=>{
   const rows=result.rows.filter(r=>eligibleSet.has(r.unit_id));
   return months.map((m,i)=>{
-   const key=String(year)+"-"+String(i+1).padStart(2,"0");
+   const key=rangeKey(year,i);
    const record=rows.filter(r=>r.month===key);
-   const v=record.filter(r=>Number(r.active_start)>0);
-   const b=v.reduce((n,r)=>n+Number(r.active_start),0);
-   const c=v.reduce((n,r)=>n+Number(r.cancellations),0);
-   const full=isNetworkView?result.sourceTotals.find(x=>x.month===key):null;
-   return {month:m,key,rate:full?rate(Number(full.active_start),Number(full.total_exits_reported)):rate(b,c),coverage:record.length};
+   const totals=totalize(record);
+   const full=state==="all"&&!search.trim()?result.sourceTotals.find(x=>x.month===key):null;
+   const b=full?Number(full.active_start):totals.active_start;
+   const c=full?Number(full.total_exits_reported):totals.total_exits;
+   return {month:m,key,rate:simpleChurn(b,c),coverage:new Set(record.map(x=>x.unit_id)).size};
   });
- },[result.rows,result.sourceTotals,year,eligibleSet,isNetworkView]);
+ },[result.rows,result.sourceTotals,year,eligibleSet,state,search]);
  const maxTrend=Math.max(4,...trends.filter(x=>x.rate!==null).map(x=>x.rate));
  const unitDetail=detailsId?unitMap.get(detailsId):null;
- const unitHistory=useMemo(()=>result.rows.filter(x=>x.unit_id===detailsId).sort((a,b)=>b.month.localeCompare(a.month)),[result.rows,detailsId]);
+ const unitHistory=useMemo(()=>result.rows.filter(x=>x.unit_id===detailsId&&selectedMonths.has(x.month)).sort((a,b)=>b.month.localeCompare(a.month)),[result.rows,detailsId,selectedMonths]);
 
  function downloadModel(){
   const table=[["id_unidade","unidade","competencia","ativos_inicio","cancelamentos","matriculas","reativacoes","ativos_fim"]];
@@ -141,13 +188,13 @@ export default function ChurnDashboard({units=[],accessRole}){
   saveCSV("26fit_modelo_churn_"+filePeriod+".csv",table);
  }
  function downloadResults(){
-  const table=[["id_unidade","unidade","estado","competencia","ativos_inicio","cancelados","vencidos","desistencias","suspensos","total_saidas","churn_percentual","novos","renovados","retornos","retornos_suspensao","total_entradas","ativos_fim","fonte"]];
+  const table=[["id_unidade","unidade","estado","periodo","ativos_inicio_acumulados","cancelados","vencidos","desistencias","suspensos","total_saidas","churn_comparativo_estimado","churn_simples","novos","renovados","retornos","retornos_suspensao","total_entradas","ativos_fim_ultimo_mes","fonte"]];
   for(const x of ranked)if(x.row)table.push([
-   x.unit.id,x.unit.name,x.unit.state,x.row.month,x.row.active_start,
+   x.unit.id,x.unit.name,x.unit.state,selectedPeriodLabel,x.row.active_start,
    x.row.cancelled_count??"",x.row.expired??"",x.row.dropouts??"",x.row.suspended??"",x.row.total_exits??x.row.cancellations,
-   x.rate===null?"":x.rate.toFixed(4),x.row.enrollments??"",x.row.renewals??"",x.row.reactivations??"",x.row.suspension_returns??"",x.row.total_entries??"",x.row.active_end??"",x.row.source||"manual"
+   x.rate===null?"":x.rate.toFixed(4),x.row.simpleChurn===null?"":x.row.simpleChurn.toFixed(4),x.row.enrollments??"",x.row.renewals??"",x.row.reactivations??"",x.row.suspension_returns??"",x.row.total_entries??"",x.row.active_end??"",x.row.source||"manual"
   ]);
-  saveCSV("26fit_churn_"+actualMonth+".csv",table);
+  saveCSV("26fit_churn_"+periodText+".csv",table);
  }
  function selectFile(next){
   setFile(next||null);setPreview(null);setOverwrite(false);setImportError("");setSuccess("");
@@ -186,7 +233,7 @@ export default function ChurnDashboard({units=[],accessRole}){
  return <section className="churn-page">
   <div className="heading-row churn-heading">
    <div><div className="eyebrow">INTELIGÊNCIA COMERCIAL DA REDE</div><h1>Churn das unidades</h1>
-    <p>Acompanhe cancelamentos, retenção e evolução mensal de cada academia.</p></div>
+    <p>Acompanhe entradas, saídas, evolução mensal e resultados acumulados por academia.</p></div>
    <div className="churn-heading-actions">
     <button className="btn secondary" onClick={()=>reload()} disabled={result.loading}><RefreshCcw size={16}/> Atualizar</button>
     {canImport&&<button className="btn" onClick={()=>setShowImporter(v=>!v)}><Upload size={16}/> {showImporter?"Fechar importação":"Importar planilha"}</button>}
