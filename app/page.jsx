@@ -68,11 +68,44 @@ export default function Home() {
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
+ const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
- useEffect(()=>{if(ready){try{localStorage.setItem("26fit-central-comercial-demo-v1",JSON.stringify({units,campaigns,tasks}));}catch{}}},[ready,units,campaigns,tasks]);
+ // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
+ const privateUnitFields=new Set(["leader","leaderContact","coordinator","coordinatorContact","cnpj","cep","street","number","complement","administrativeName"]);
+ function publicUnitForStorage(unit){
+  if(!unit||typeof unit!=="object")return unit;
+  return Object.fromEntries(Object.entries(unit).filter(([field])=>!privateUnitFields.has(field)));
+ }
+ useEffect(()=>{
+  if(!ready)return;
+  const controller=new AbortController();
+  fetch("/api/internal-units",{cache:"no-store",credentials:"same-origin",signal:controller.signal})
+   .then(async response=>{if(!response.ok)throw Error("Diretório interno indisponível");return response.json();})
+   .then(payload=>{
+    if(!Array.isArray(payload.units)||payload.units.length!==83)throw Error("Cadastro interno incompleto");
+    setUnits(previous=>{
+      const byId=new Map(mergeOfficialUnits(previous).map(unit=>[unit.id,unit]));
+      for(const incoming of payload.units){
+        if(!incoming||typeof incoming.id!=="string")continue;
+        const old=byId.get(incoming.id)||{};
+        byId.set(incoming.id,{
+          ...old,...incoming,
+          source:old.source||incoming.source,
+          region:old.region||({RS:"Sul",SC:"Sul",PR:"Sul",SP:"Sudeste",MT:"Centro-Oeste",PA:"Norte",PI:"Nordeste"}[incoming.state]||null),
+          siteUrl:old.siteUrl||null,
+          status:old.status||(incoming.type==="Matriz"?"Administrativo":"Aberta")
+        });
+      }
+      return [...byId.values()];
+    });
+    setInternalDirectoryState("ready");
+   }).catch(e=>{if(e.name!=="AbortError")setInternalDirectoryState("error");});
+  return ()=>controller.abort();
+ },[ready]);
+ useEffect(()=>{if(ready){try{localStorage.setItem("26fit-central-comercial-demo-v1",JSON.stringify({units:units.map(publicUnitForStorage),campaigns,tasks}));}catch{}}},[ready,units,campaigns,tasks]);
  const normalizeSearch=(v)=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const directoryUnits=units.filter(u=>showDemoUnits||!u.demo).filter(u=>{
-    const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator].filter(Boolean).join(" "));
+    const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator,u.leader,u.cnpj,u.cep,u.administrativeName].filter(Boolean).join(" "));
     return (!directoryFilter.q||search.includes(normalizeSearch(directoryFilter.q)))
       &&(!directoryFilter.state||u.state===directoryFilter.state)
       &&(!directoryFilter.region||u.region===directoryFilter.region)
@@ -122,7 +155,7 @@ export default function Home() {
  }
  function confirmRead(t){const c=campaigns.find(c=>c.id===t.campaignId);if(!c)return;setEditing(e=>({...e,ackVersion:c.version}));notify("Confirmação será gravada ao salvar a demanda.");}
  function exportData(){
-  const data=JSON.stringify({schema:"26fit.central.demo.v1",exportedAt:new Date().toISOString(),units,campaigns,tasks},null,2);
+  const data=JSON.stringify({schema:"26fit.central.demo.v1",exportedAt:new Date().toISOString(),units:units.map(publicUnitForStorage),campaigns,tasks},null,2);
   const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));
   const a=document.createElement("a");a.href=url;a.download="26fit-central-comercial-demo-"+day()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify("Backup local exportado.");
  }
@@ -214,20 +247,35 @@ export default function Home() {
       {directoryUnits.map(u=><article className="unit-tile" key={u.id}>
         <div className="unit-icon"><Building2 size={21}/></div>
         <div className="unit-content">
-          <div className="unit-label"><h3>{u.name}</h3>{u.status==="Inauguração"?<Tag tone="warning">Inauguração</Tag>:u.demo?<Tag>Fictícia</Tag>:<Tag tone="success">Aberta</Tag>}</div>
+          <div className="unit-label"><h3>{u.name}</h3>{u.demo?<Tag>Fictícia</Tag>:u.type==="Matriz"?<Tag>Matriz</Tag>:u.type==="Eleve"?<Tag>Eleve</Tag>:u.status==="Inauguração"?<Tag tone="warning">Inauguração</Tag>:<Tag tone="success">Aberta</Tag>}</div>
           <p>{u.city||"Cidade não informada"} {u.state?"· "+u.state:""} {u.region?"· "+u.region:""}</p>
           {u.address&&<p className="unit-address">{u.address}</p>}
-          {u.coordinator&&<p className="unit-address">Coordenação: {u.coordinator}</p>}
+          {(u.leader||u.coordinator)&&<div className="directory-people">
+            <div><span>Líder da unidade</span><strong>{u.leader||"Não informado"}</strong>{u.leaderContact&&<a href={"tel:"+u.leaderContact.replace(/\\D/g,"")} title="Ligar para o líder">{u.leaderContact}</a>}</div>
+            <div><span>Coordenação regional</span><strong>{u.coordinator||"Não informado"}</strong>{u.coordinatorContact&&<a href={"tel:"+u.coordinatorContact.replace(/\\D/g,"")} title="Ligar para a coordenação">{u.coordinatorContact}</a>}</div>
+          </div>}
+          {(u.cnpj||u.cep||u.street||u.complement)&&<details className="directory-extra">
+            <summary>Dados cadastrais e endereço</summary>
+            <div className="directory-extra-fields">
+              {u.administrativeName&&<p><span>Nome na planilha</span><strong>{u.administrativeName}</strong></p>}
+              {u.cnpj&&<p><span>CNPJ</span><strong>{u.cnpj}</strong></p>}
+              {u.cep&&<p><span>CEP</span><strong>{u.cep}</strong></p>}
+              {u.street&&<p><span>Logradouro</span><strong>{u.street}</strong></p>}
+              {u.number&&<p><span>Número</span><strong>{u.number}</strong></p>}
+              {u.complement&&<p><span>Complemento</span><strong>{u.complement}</strong></p>}
+            </div>
+          </details>}
           <div className="unit-actions">
             <Tag>{u.type||"Tipo não informado"}</Tag>
-            {u.siteUrl&&<a href={u.siteUrl} target="_blank" rel="noopener noreferrer" title={"Abrir página oficial de "+u.name}>Ver no site <ArrowUpRight size={14}/></a>}
+            {u.mapUrl&&<a href={u.mapUrl} target="_blank" rel="noopener noreferrer" title={"Abrir localização de "+u.name}>Mapa <ArrowUpRight size={14}/></a>}
+            {u.siteUrl&&<a href={u.siteUrl} target="_blank" rel="noopener noreferrer" title={"Abrir página oficial de "+u.name}>Site <ArrowUpRight size={14}/></a>}
             <button type="button" onClick={()=>quickFilter({unit:u.id,stage:"",period:""})}>Demandas <ArrowRight size={14}/></button>
           </div>
         </div>
       </article>)}
       {!directoryUnits.length&&<div className="empty">Nenhuma unidade encontrada com esses filtros.</div>}
     </div>
-    <Notice>Fonte: site oficial 26fit, consultado em 11/11/2026. A classificação entre unidade própria e franquia, os responsáveis, os CNPJs e os contatos internos exigem o diretório administrativo; não foram presumidos. Os registros são mantidos no navegador até a integração do banco compartilhado.</Notice>
+    <Notice>{internalDirectoryState==="ready"?"Cadastro administrativo carregado com liderança, coordenação, CNPJ, endereço e mapa. Os telefones são fornecidos pelo servidor protegido e não são gravados no GitHub ou no armazenamento local.":internalDirectoryState==="loading"?"Carregando cadastro interno de líderes e coordenadores…":"O diretório público continua disponível. Não foi possível carregar os dados administrativos protegidos; verifique o acesso autorizado na Vercel."} A gestão de demandas permanece local até a integração do banco compartilhado.</Notice>
    </>}
    {nav==="Acervo"&&<><div className="heading-row"><div><div className="eyebrow">CONHECIMENTO DA REDE</div><h1>Acervo de aprendizados</h1><p>Registre, consulte e reaproveite o que funcionou.</p></div><BookOpen size={30} color="#8b949d"/></div><div className="panel"><div className="section-title"><h3>Demandas concluídas</h3><Tag>{tasks.filter(t=>t.stage==="Concluído").length} registros</Tag></div>{tasks.filter(t=>t.stage==="Concluído").map(t=><button key={t.id} className="learning-card" onClick={()=>openTask(t)}><div><h4>{t.title}</h4><p>{t.learning?.worked}</p><Tag tone="success">{t.learning?.decision||"Concluído"}</Tag></div><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.stage==="Concluído")&&<div className="empty">Quando uma demanda for concluída com aprendizados, ela aparecerá aqui.</div>}</div></>}
    {nav==="Equipe"&&<><div className="heading-row"><div><div className="eyebrow">PESSOAS E PERMISSÕES</div><h1>Equipe</h1><p>Perfis individuais e unidades atribuídas.</p></div><Tag tone="warning">Em preparação</Tag></div><div className="panel empty-feature"><LockKeyhole size={34}/><h3>Convites de equipe estarão disponíveis após a autenticação</h3><p>O cadastro interno será separado do compartilhamento do site. Perfis previstos: Administrador, Gestor comercial, Líder de unidade e Colaborador. Não há permissões simuladas nesta versão.</p></div></>}
