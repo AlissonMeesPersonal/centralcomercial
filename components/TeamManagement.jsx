@@ -47,7 +47,7 @@ export default function TeamManagement({accessRole}){
  return <section className="team-page">
   <div className="heading-row"><div><div className="eyebrow">ACESSOS DA REDE</div><h1>Equipe</h1><p>Cadastre as pessoas autorizadas e controle seus perfis.</p></div>
   <span className="team-count"><UsersRound size={16}/>{members.length} membros</span></div>
-  <div className="team-privacy"><ShieldCheck size={18}/><div><strong>Convites individuais e gestão de acessos</strong><span>Somente contas autorizadas aparecem nesta lista. O acesso técnico do desenvolvedor permanece separado e oculto.</span></div></div>
+  <div className="team-privacy"><ShieldCheck size={18}/><div><strong>Convites individuais e gestão de acessos</strong><span>Cada pessoa usa seu próprio e-mail. As permissões são verificadas no servidor.</span></div></div>
   <div className="team-layout">
    <section className="panel team-invite-card">
     <div className="section-title"><div><h3>Convidar colaborador</h3><p>Gere um link pessoal válido por sete dias.</p></div><UserPlus size={19} color="#737d87"/></div>
@@ -67,7 +67,7 @@ export default function TeamManagement({accessRole}){
   {error&&<p className="team-error" role="alert">{error}</p>}
   {notice&&<p className="team-notice">{notice}</p>}
   <section className="panel team-members">
-   <div className="section-title"><div><h3>Usuários cadastrados</h3><p>As contas técnicas não são exibidas nesta relação.</p></div><button className="btn secondary" onClick={refresh}><RefreshCcw size={14}/> Atualizar</button></div>
+   <div className="section-title"><div><h3>Usuários cadastrados</h3><p>Perfis da equipe com acesso autorizado.</p></div><button className="btn secondary" onClick={refresh}><RefreshCcw size={14}/> Atualizar</button></div>
    <label className="team-search"><Search size={16}/><input aria-label="Pesquisar usuários" value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nome, e-mail ou cargo"/></label>
    {loading?<p className="team-secondary">Carregando equipe…</p>:show.length?show.map(member=><div className="team-person" key={member.email}>
      <span className="team-avatar">{member.name?.trim()?.[0]?.toUpperCase()||"?"}</span>
