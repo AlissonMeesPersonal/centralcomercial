@@ -160,3 +160,40 @@
 .admin-invite-tip{font-size:11px;color:#8b959d}
 @media(max-width:850px){.team-layout{grid-template-columns:1fr}}
 @media(max-width:560px){.access-panel{padding:25px 20px}.team-person{flex-wrap:wrap}.team-role{width:auto;flex:0 0 125px}.team-person-main{flex:1 1 calc(100% - 60px)}.team-person .tag{margin-left:50px}.team-toggle{margin-left:auto}}
+
+
+/* Campanhas: apenas unidades com equipe efetivamente ativa */
+.campaign-unit-selector{display:flex;flex-direction:column;gap:12px}
+.campaign-unit-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:11px;color:#697782;background:#f5f7f8;border:1px solid #e8ecf0;border-radius:9px;padding:12px 14px}
+.campaign-unit-summary span{display:flex;gap:8px;align-items:center}
+.campaign-unit-summary strong{color:#2f3b43;font-size:11px}
+.campaign-units-empty{padding:25px 20px;border:1px dashed #d6dfe5;border-radius:10px;background:#fbfcfd;display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px}
+.campaign-units-empty>svg{color:#8a959e}
+.campaign-units-empty strong{font-size:13px;color:#394650}
+.campaign-units-empty p{font-size:11px;line-height:1.6;max-width:380px;color:#84909a;margin:0}
+.campaign-unit-search,.team-unit-search{display:block;position:relative}
+.campaign-unit-search svg,.team-unit-search svg{position:absolute;left:12px;top:11px;color:#919ea8}
+.campaign-unit-search input,.team-unit-search input{height:38px;width:100%;border:1px solid #e1e7ea;border-radius:8px;background:white;padding:0 11px 0 36px;font-size:11px;color:#36444d;outline:none}
+.campaign-unit-options,.team-unit-options{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;scrollbar-color:#cbd3d9 transparent}
+.campaign-unit-options .select-unit,.campaign-historical .select-unit{background:#fff;color:#313b43;border:1px solid #e5eaee;padding:12px;gap:12px}
+.campaign-unit-options .select-unit strong,.campaign-historical .select-unit strong{color:#303b44;font-size:12px}
+.campaign-unit-options .select-unit small,.campaign-historical .select-unit small{color:#828e97}
+.campaign-historical{padding-top:13px;border-top:1px solid #e8edf0;display:flex;flex-direction:column;gap:8px}
+.campaign-historical>strong{font-size:11px;color:#66747f}
+.campaign-historical>p{font-size:11px;color:#8e9aa3;line-height:1.6;margin:0}
+.campaign-historical .select-unit{background:#fbfbfc}
+.team-units-control{border:1px solid #e5eaee;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:11px}
+.team-unit-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.team-unit-header strong{font-size:11px;color:#53616a;display:flex;gap:8px;align-items:center}
+.team-unit-header span{font-size:10px;color:#8c98a1}
+.team-unit-options{max-height:190px}
+.team-unit-option{display:flex;align-items:center;gap:10px;padding:8px 9px;background:#fafbfc;border-radius:7px;cursor:pointer}
+.team-unit-option input{accent-color:#343c44;flex:none}
+.team-unit-option span{display:flex;flex-direction:column;gap:4px}
+.team-unit-option strong{font-size:11px;color:#3b4851}
+.team-unit-option small{font-size:10px;color:#98a2ab}
+.team-units-control>small{font-size:10px;line-height:1.5;color:#929da6}
+.team-units-edit{padding:8px 10px;display:flex;align-items:center;gap:6px;border:1px solid #e5eaed;border-radius:8px;font-size:11px;color:#596670;background:#fff;white-space:nowrap}
+.team-units-edit:hover{background:#f3f6f8}
+.team-assignment-drawer .team-unit-options{max-height:55vh}
+@media(max-width:640px){.team-units-edit{order:4}.campaign-unit-summary{flex-wrap:wrap}}
