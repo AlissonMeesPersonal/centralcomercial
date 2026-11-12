@@ -17,6 +17,9 @@ export async function POST(request){
   if(!access.allowed||!["developer","admin","gestor"].includes(access.role))
     return fail("Seu perfil não permite importar dados de churn.",403);
 
+  // Bloqueia POSTs cruzados mesmo que o navegador aceite cookies de sessão.
+  const origin=request.headers.get("origin");
+  if(origin&&origin!==new URL(request.url).origin)return fail("Origem de importação não autorizada.",403);
   const claimedSize=Number(request.headers.get("content-length")||0);
   if(claimedSize>6*1024*1024)return fail("Arquivo muito grande. Limite de 5 MB.",413);
   let form;

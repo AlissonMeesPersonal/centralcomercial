@@ -160,8 +160,11 @@ export default function ChurnDashboard({units=[],accessRole}){
     setSuccess("Importação concluída: "+data.inserted+" novos registros e "+data.updated+" atualizados.");
     setFile(null);setPreview(null);setOverwrite(false);
     if(fileRef.current)fileRef.current.value="";
-    const receivedMonth=data?.latestMonth;
-    await reload(year);
+    const importedMonths=(preview.sample||[]).map(item=>item.month).sort();
+    const chosen=importedMonths.at(-1)||filePeriod;
+    if(Number(chosen.slice(0,4))!==year)setYear(Number(chosen.slice(0,4)));
+    setMonth(chosen);
+    await reload(Number(chosen.slice(0,4)));
    }
   }catch(e){setImportError(e.message||"Não foi possível importar o arquivo.");}
   finally{setWorking(false);}
