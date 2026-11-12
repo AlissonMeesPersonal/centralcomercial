@@ -42,7 +42,7 @@ export default function ChurnDashboard({units=[],accessRole}){
  const [month,setMonth]=useState("latest");
  const [state,setState]=useState("all"),[search,setSearch]=useState("");
  const [detailsId,setDetailsId]=useState(null);
- const [result,setResult]=useState({loading:true,rows:[],batches:[],error:""});
+ const [result,setResult]=useState({loading:true,rows:[],batches:[],sourceTotals:[],unmatched:[],sourceImports:[],error:""});
  const [showImporter,setShowImporter]=useState(false);
  const [file,setFile]=useState(null);
  const [filePeriod,setFilePeriod]=useState(periodNow());
@@ -58,8 +58,8 @@ export default function ChurnDashboard({units=[],accessRole}){
    const response=await fetch("/api/churn?year="+encodeURIComponent(targetYear),{cache:"no-store",credentials:"same-origin"});
    const body=await response.json();
    if(!response.ok)throw Error(body.error||"Falha ao carregar indicadores.");
-   setResult({loading:false,rows:Array.isArray(body.rows)?body.rows:[],batches:Array.isArray(body.batches)?body.batches:[],error:""});
-  }catch(err){setResult({loading:false,rows:[],batches:[],error:err.message||"Falha ao carregar indicadores."});}
+   setResult({loading:false,rows:Array.isArray(body.rows)?body.rows:[],batches:Array.isArray(body.batches)?body.batches:[],sourceTotals:body.sourceTotals||[],unmatched:body.unmatched||[],sourceImports:body.sourceImports||[],error:""});
+  }catch(err){setResult({loading:false,rows:[],batches:[],sourceTotals:[],unmatched:[],sourceImports:[],error:err.message||"Falha ao carregar indicadores."});}
  }
  useEffect(()=>{reload(year);},[year]);
 
@@ -80,12 +80,21 @@ export default function ChurnDashboard({units=[],accessRole}){
  const monthlyRows=useMemo(()=>result.rows.filter(row=>row.month===actualMonth&&eligibleSet.has(row.unit_id)),[result.rows,actualMonth,eligibleSet]);
  const valid=monthlyRows.filter(row=>Number(row.active_start)>0);
  const bases=valid.reduce((a,r)=>a+Number(r.active_start),0);
- const cancelled=valid.reduce((a,r)=>a+Number(r.cancellations),0);
- const allCancel=monthlyRows.reduce((a,r)=>a+Number(r.cancellations),0);
+ const exitsInUnits=valid.reduce((a,r)=>a+Number(r.total_exits??r.cancellations),0);
+ const exitsFromUnits=monthlyRows.reduce((a,r)=>a+Number(r.total_exits??r.cancellations),0);
+ const cancelledInUnits=monthlyRows.reduce((a,r)=>a+Number(r.cancelled_count??r.cancellations),0);
  const totalNew=monthlyRows.reduce((a,r)=>a+Number(r.enrollments||0),0);
  const totalReact=monthlyRows.reduce((a,r)=>a+Number(r.reactivations||0),0);
  const coverage=monthlyRows.length;
- const summaryRate=rate(bases,cancelled);
+ const sourceTotal=result.sourceTotals.find(r=>r.month===actualMonth);
+ const isNetworkView=state==="all"&&!search.trim();
+ const networkOfficial=isNetworkView&&sourceTotal;
+ const baseShown=networkOfficial?Number(sourceTotal.active_start):bases;
+ const exitsShown=networkOfficial?Number(sourceTotal.total_exits_reported):exitsFromUnits;
+ const cancelledShown=networkOfficial?Number(sourceTotal.cancelled):cancelledInUnits;
+ const summaryRate=rate(baseShown,exitsShown);
+ const unmatchedMonth=(result.unmatched||[]).filter(r=>r.month===actualMonth);
+ const discrepancy=networkOfficial?Number(sourceTotal.total_exits_reported)-Number(sourceTotal.exits_detail):0;
  const rowById=useMemo(()=>new Map(monthlyRows.map(row=>[row.unit_id,row])),[monthlyRows]);
  const ranked=useMemo(()=>{
   return eligible.map(u=>({unit:u,row:rowById.get(u.id)||null,rate:rowById.get(u.id)?.churn??null}))
@@ -116,9 +125,10 @@ export default function ChurnDashboard({units=[],accessRole}){
    const v=record.filter(r=>Number(r.active_start)>0);
    const b=v.reduce((n,r)=>n+Number(r.active_start),0);
    const c=v.reduce((n,r)=>n+Number(r.cancellations),0);
-   return {month:m,key,rate:rate(b,c),coverage:record.length};
+   const full=isNetworkView?result.sourceTotals.find(x=>x.month===key):null;
+   return {month:m,key,rate:full?rate(Number(full.active_start),Number(full.total_exits_reported)):rate(b,c),coverage:record.length};
   });
- },[result.rows,year,eligibleSet]);
+ },[result.rows,result.sourceTotals,year,eligibleSet,isNetworkView]);
  const maxTrend=Math.max(4,...trends.filter(x=>x.rate!==null).map(x=>x.rate));
  const unitDetail=detailsId?unitMap.get(detailsId):null;
  const unitHistory=useMemo(()=>result.rows.filter(x=>x.unit_id===detailsId).sort((a,b)=>b.month.localeCompare(a.month)),[result.rows,detailsId]);
@@ -180,7 +190,7 @@ export default function ChurnDashboard({units=[],accessRole}){
    </div>
   </div>
 
-  <div className="churn-formula"><Info size={18}/><span><strong>Churn mensal</strong> = cancelamentos ÷ alunos ativos no início do mês × 100. Os totais da rede são ponderados pelo tamanho da base; unidades sem base válida não entram na taxa consolidada.</span></div>
+  <div className="churn-formula"><Info size={18}/><span><strong>Churn mensal 26fit</strong> = total de saídas (cancelados + vencidos + desistências + suspensos) ÷ alunos ativos no início do mês × 100. No consolidado da rede usamos os totais oficiais do relatório e, nos filtros, a soma ponderada das unidades identificadas. Base inicial zero aparece como Não informado.</span></div>
 
   {canImport&&showImporter&&<section className="panel churn-import-panel">
    <div className="section-title"><div><h3>Importar dados por unidade</h3><p>Arquivo CSV ou Excel (.xlsx), até 5 MB e 2.000 registros por lote.</p></div><FileSpreadsheet size={20} color="#77828b"/></div>
@@ -207,7 +217,7 @@ export default function ChurnDashboard({units=[],accessRole}){
     </div>
     {preview.errorCount>0&&<div className="churn-validation-list">{preview.errors.map((e,i)=><p key={i}><strong>Linha {e.line}</strong> · {e.unit||"Sem unidade"} — {e.reason}</p>)}{preview.errorCount>preview.errors.length&&<p>Exibidos os primeiros {preview.errors.length} erros.</p>}</div>}
     {preview.warnings?.length>0&&<details className="churn-validation-list churn-warnings"><summary>{preview.warningCount} aviso(s) de consistência para revisar</summary>{preview.warnings.map((e,i)=><p key={i}>Linha {e.line}: {e.reason}</p>)}</details>}
-    {preview.sample?.length>0&&<div className="churn-mini-table"><table><thead><tr><th>Unidade</th><th>Mês</th><th>Ativos início</th><th>Cancelamentos</th><th>Churn</th><th>Situação</th></tr></thead><tbody>{preview.sample.map((r,i)=><tr key={i}><td>{r.unitName}</td><td>{dateLabel(r.month)}</td><td>{fmtCount(r.activeStart)}</td><td>{fmtCount(r.cancellations)}</td><td>{fmtPct(r.churn)}</td><td>{r.existing?"Atualização":"Novo"}</td></tr>)}</tbody></table></div>}
+    {preview.sample?.length>0&&<div className="churn-mini-table"><table><thead><tr><th>Unidade</th><th>Mês</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th><th>Situação</th></tr></thead><tbody>{preview.sample.map((r,i)=><tr key={i}><td>{r.unitName}</td><td>{dateLabel(r.month)}</td><td>{fmtCount(r.activeStart)}</td><td>{fmtCount(r.cancellations)}</td><td>{fmtPct(r.churn)}</td><td>{r.existing?"Atualização":"Novo"}</td></tr>)}</tbody></table></div>}
     {preview.existing>0&&<label className="churn-overwrite"><input type="checkbox" checked={overwrite} onChange={e=>setOverwrite(e.target.checked)}/><span>Confirmo que desejo <strong>substituir os registros existentes</strong> deste arquivo. As versões anteriores permanecerão no histórico.</span></label>}
    </div>}
    <div className="churn-import-footer">
@@ -226,9 +236,9 @@ export default function ChurnDashboard({units=[],accessRole}){
   </div>
 
   <div className="churn-kpis">
-   <KPICard title="Churn consolidado" value={fmtPct(summaryRate)} description={"Base válida: "+fmtCount(bases)+" alunos"} Icon={TrendingDown} iconTone="churn-orange"/>
-   <KPICard title="Cancelamentos" value={fmtCount(allCancel)} description="No mês selecionado" Icon={ArrowDownRight} iconTone="churn-red"/>
-   <KPICard title="Base inicial" value={fmtCount(monthlyRows.reduce((a,r)=>a+Number(r.active_start),0))} description="Total de alunos informados" Icon={UsersRoundIcon} iconTone="churn-blue"/>
+   <KPICard title="Churn consolidado" value={fmtPct(summaryRate)} description={"Base inicial: "+fmtCount(baseShown)+" alunos"} Icon={TrendingDown} iconTone="churn-orange"/>
+   <KPICard title="Total de saídas" value={fmtCount(exitsShown)} description={"Cancelados: "+fmtCount(cancelledShown)} Icon={ArrowDownRight} iconTone="churn-red"/>
+   <KPICard title="Base inicial" value={fmtCount(baseShown)} description="Total de alunos informados" Icon={UsersRoundIcon} iconTone="churn-blue"/>
    <KPICard title="Unidades com dados" value={coverage+" / "+eligible.length} description={"Cobertura: "+(eligible.length?fmtPct(coverage/eligible.length*100):"Não informado")} Icon={Building2} iconTone="churn-green"/>
   </div>
 
@@ -254,10 +264,10 @@ export default function ChurnDashboard({units=[],accessRole}){
   </div>
 
   <section className="panel churn-ranking">
-   <div className="section-title"><div><h3>Churn por unidade</h3><p>{dateLabel(actualMonth)} · ordenado pela maior taxa de cancelamento</p></div><span className="tag">{ranked.length} unidades</span></div>
+   <div className="section-title"><div><h3>Churn por unidade</h3><p>{dateLabel(actualMonth)} · ordenado pela maior taxa de saídas</p></div><span className="tag">{ranked.length} unidades</span></div>
    {result.loading?<div className="empty">Carregando indicadores do Neon…</div>:
    !ranked.length?<div className="empty">Nenhuma unidade corresponde à pesquisa.</div>:
-   <div className="churn-table-wrap"><table><thead><tr><th>Unidade</th><th>Estado</th><th>Ativos início</th><th>Cancelamentos</th><th>Churn</th><th>Dados</th><th></th></tr></thead>
+   <div className="churn-table-wrap"><table><thead><tr><th>Unidade</th><th>Estado</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th><th>Dados</th><th></th></tr></thead>
     <tbody>{ranked.map(({unit,row,rate:churn})=><tr key={unit.id} className={detailsId===unit.id?"active":""} onClick={()=>setDetailsId(x=>x===unit.id?null:unit.id)}>
       <td><strong>{unit.name}</strong><small>{unit.city||"Cidade não informada"}</small></td>
       <td>{unit.state||"—"}</td>
@@ -271,7 +281,7 @@ export default function ChurnDashboard({units=[],accessRole}){
 
   {unitDetail&&<section className="panel churn-detail-panel">
    <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.city} · {unitDetail.state}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
-   <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Cancelamentos</th><th>Churn</th><th>Novas matrículas</th><th>Reativações</th><th>Ativos fim</th></tr></thead>
+   <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th><th>Novas matrículas</th><th>Reativações</th><th>Ativos fim</th></tr></thead>
     <tbody>{unitHistory.map(row=><tr key={row.month}><td>{dateLabel(row.month)}</td><td>{fmtCount(row.active_start)}</td><td>{fmtCount(row.cancellations)}</td><td>{fmtPct(row.churn)}</td><td>{row.enrollments===null?"Não informado":fmtCount(row.enrollments)}</td><td>{row.reactivations===null?"Não informado":fmtCount(row.reactivations)}</td><td>{row.active_end===null?"Não informado":fmtCount(row.active_end)}</td></tr>)}</tbody></table>
     {!unitHistory.length&&<div className="empty">Esta unidade ainda não possui dados no ano selecionado.</div>}
    </div>
