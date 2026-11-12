@@ -96,7 +96,7 @@ export default function ChurnDashboard({units=[],accessRole}){
  const selectedPeriodLabel=isRange?(visibleMonths.length
    ?dateLabel(visibleMonths[0])+" até "+dateLabel(visibleMonths.at(-1)):"Intervalo inválido"):dateLabel(actualMonth);
  const periodText=isRange?visibleMonths[0]+"_a_"+visibleMonths.at(-1):actualMonth;
- const eligible=useMemo(()=>directory.filter(u=>(state==="all"||u.state===state)&&normal([u.name,u.city,u.state].join(" ")).includes(normal(search))),[directory,state,search]);
+ const eligible=useMemo(()=>directory.filter(u=>(state==="all"||u.state===state)&&normal([u.name,u.city,u.state,u.churnCode].join(" ")).includes(normal(search))),[directory,state,search]);
  const eligibleSet=useMemo(()=>new Set(eligible.map(u=>u.id)),[eligible]);
  const monthlyRows=useMemo(()=>result.rows.filter(row=>selectedMonths.has(row.month)&&eligibleSet.has(row.unit_id)),[result.rows,selectedMonths,eligibleSet]);
  const groupedRows=useMemo(()=>aggregateMonths(monthlyRows),[monthlyRows]);
@@ -188,9 +188,9 @@ export default function ChurnDashboard({units=[],accessRole}){
   saveCSV("26fit_modelo_churn_"+filePeriod+".csv",table);
  }
  function downloadResults(){
-  const table=[["id_unidade","unidade","estado","periodo","ativos_inicio_acumulados","cancelados","vencidos","desistencias","suspensos","total_saidas","churn_comparativo_estimado","churn_simples","novos","renovados","retornos","retornos_suspensao","total_entradas","ativos_fim_ultimo_mes","fonte"]];
+  const table=[["codigo_churn","id_unidade","unidade","estado","periodo","ativos_inicio_acumulados","cancelados","vencidos","desistencias","suspensos","total_saidas","churn_comparativo_estimado","churn_simples","novos","renovados","retornos","retornos_suspensao","total_entradas","ativos_fim_ultimo_mes","fonte"]];
   for(const x of ranked)if(x.row)table.push([
-   x.unit.id,x.unit.name,x.unit.state,selectedPeriodLabel,x.row.active_start,
+   x.unit.churnCode??"",x.unit.id,x.unit.name,x.unit.state,selectedPeriodLabel,x.row.active_start,
    x.row.cancelled_count??"",x.row.expired??"",x.row.dropouts??"",x.row.suspended??"",x.row.total_exits??x.row.cancellations,
    x.rate===null?"":x.rate.toFixed(4),x.row.simpleChurn===null?"":x.row.simpleChurn.toFixed(4),x.row.enrollments??"",x.row.renewals??"",x.row.reactivations??"",x.row.suspension_returns??"",x.row.total_entries??"",x.row.active_end??"",x.row.source||"manual"
   ]);
@@ -307,7 +307,7 @@ export default function ChurnDashboard({units=[],accessRole}){
    <label><Filter size={16}/><select aria-label="Estado" value={state} onChange={e=>setState(e.target.value)}>
     <option value="all">Todos os estados</option>{states.map(uf=><option key={uf} value={uf}>{stateFull[uf]||uf} · {uf}</option>)}
    </select></label>
-   <label className="churn-search"><Search size={16}/><input aria-label="Pesquisar unidade" placeholder="Pesquisar unidade ou cidade" value={search} onChange={e=>setSearch(e.target.value)}/></label>
+   <label className="churn-search"><Search size={16}/><input aria-label="Pesquisar unidade" placeholder="Pesquisar por nome, cidade ou código churn" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <button className="btn secondary" onClick={downloadResults} disabled={!monthlyRows.length}><Download size={16}/> Exportar CSV</button>
   </div>
   <div className="churn-selected-period">
@@ -393,7 +393,7 @@ export default function ChurnDashboard({units=[],accessRole}){
    !ranked.length?<div className="empty">Nenhuma unidade corresponde à pesquisa.</div>:
    <div className="churn-table-wrap"><table><thead><tr><th>Unidade</th><th>Estado</th><th>{isRange?"Base acumulada (alunos-mês)":"Ativos início"}</th><th>Entradas</th><th>Total saídas</th><th>Churn</th><th>Dados</th><th></th></tr></thead>
     <tbody>{ranked.map(({unit,row,rate:churn})=><tr key={unit.id} className={detailsId===unit.id?"active":""} onClick={()=>setDetailsId(x=>x===unit.id?null:unit.id)}>
-      <td><strong>{unit.name}</strong><small>{unit.city||"Cidade não informada"}</small></td>
+      <td><strong>{unit.name}</strong><small>{unit.churnCode==null?"Sem código de churn":"Código churn "+String(unit.churnCode).padStart(2,"0")} · {unit.city||"Cidade não informada"}</small></td>
       <td>{unit.state||"—"}</td>
       <td>{row?fmtCount(row.active_start):"—"}</td>
       <td>{row?fmtCount(row.total_entries):"—"}</td>
@@ -405,7 +405,7 @@ export default function ChurnDashboard({units=[],accessRole}){
   </section>
 
   {unitDetail&&<section className="panel churn-detail-panel">
-   <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.city} · {unitDetail.state} · {selectedPeriodLabel}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
+   <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.churnCode==null?"Sem código de churn":"Código churn "+String(unitDetail.churnCode).padStart(2,"0")} · {unitDetail.city} · {unitDetail.state} · {selectedPeriodLabel}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
    <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Cancelados</th><th>Vencidos</th><th>Desistências</th><th>Suspensos</th><th>Total saídas</th><th>Churn</th><th>Novos</th><th>Renovados</th><th>Retornos</th><th>Retorno suspensões</th><th>Total entradas</th><th>Ativos fim</th></tr></thead>
     <tbody>{unitHistory.map(row=><tr key={row.month}><td>{dateLabel(row.month)}</td><td>{fmtCount(row.active_start)}</td><td>{row.cancelled_count==null?"—":fmtCount(row.cancelled_count)}</td><td>{row.expired==null?"—":fmtCount(row.expired)}</td><td>{row.dropouts==null?"—":fmtCount(row.dropouts)}</td><td>{row.suspended==null?"—":fmtCount(row.suspended)}</td><td>{fmtCount(row.total_exits??row.cancellations)}</td><td>{fmtPct(row.churn)}</td><td>{row.enrollments==null?"—":fmtCount(row.enrollments)}</td><td>{row.renewals==null?"—":fmtCount(row.renewals)}</td><td>{row.reactivations==null?"—":fmtCount(row.reactivations)}</td><td>{row.suspension_returns==null?"—":fmtCount(row.suspension_returns)}</td><td>{row.total_entries==null?"—":fmtCount(row.total_entries)}</td><td>{row.active_end==null?"—":fmtCount(row.active_end)}</td></tr>)}</tbody></table>
     {!unitHistory.length&&<div className="empty">Esta unidade ainda não possui dados no período selecionado.</div>}
