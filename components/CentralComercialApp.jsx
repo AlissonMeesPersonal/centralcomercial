@@ -4,11 +4,12 @@ import TeamManagement from "./TeamManagement";
 import CampaignUnitSelector from "./CampaignUnitSelector";
 import ChurnDashboard from "./ChurnDashboard";
 import LearningArchive from "./LearningArchive";
+import HistoryDashboard from "./HistoryDashboard";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, ClipboardList, Megaphone, CalendarDays, Building2,
-  BookOpen, UsersRound, Settings2, Search, Plus, Bell, ArrowUpRight,
+  BookOpen, History, Archive, UsersRound, Settings2, Search, Plus, Bell, ArrowUpRight,
   CheckCircle2, Clock3, AlertTriangle, Menu, X, Download, Upload,
   MoreHorizontal, ArrowLeft, ShieldCheck, FileText, Target, Wallet,
   CircleAlert, Filter, RotateCcw, TrendingUp, TrendingDown, Save, Trash2, Eye,
@@ -38,6 +39,7 @@ const NAV=[
  ["Churn das unidades",TrendingDown],
  ["Gerenciar unidades",Pencil],
  ["Acervo",BookOpen],
+ ["Histórico",History],
  ["Equipe",UsersRound],
  ["Configurações",Settings2],
 ];
@@ -49,7 +51,7 @@ function percent(x){return x===null?"Não informado":new Intl.NumberFormat("pt-B
 function ratio(n,d){return n===null||n===undefined||d===null||d===undefined||Number(d)<=0||n===""?null:(Number(n)/Number(d))*100;}
 function cost(i,r){return i===null||i===undefined||r===null||r===undefined||Number(r)<=0||i===""?null:Number(i)/Number(r);}
 function checklist(cat){return (TEMPLATES[cat]||TEMPLATES["Campanha geral"]).map((title,i)=>({id:uid(),title,done:false,required:i<3,owner:"",due:""}));}
-function task(data={}) {return {id:uid(),title:"",objective:"",category:"Campanha geral",unitId:"site-26fit-santa-cruz-do-sul",campaignId:null,owner:"Equipe local",support:"",collaborators:"",priority:"Média",due:day(7),stage:"Ideias",targetAudience:"",offer:"",channels:"",dependencies:"",blocked:false,blockReason:"",indicator:"Matrículas",goal:null,actual:null,budget:null,investment:null,ackVersion:0,checklist:checklist("Campanha geral"),comments:[],history:[],learning:{worked:"",challenges:"",decision:"",pendingReason:""},demo:false,updatedAt:new Date().toISOString(),...data};}
+function task(data={}) {return {id:uid(),title:"",objective:"",category:"Campanha geral",unitId:"site-26fit-santa-cruz-do-sul",campaignId:null,owner:"Equipe local",support:"",collaborators:"",priority:"Média",due:day(7),stage:"Ideias",targetAudience:"",offer:"",channels:"",dependencies:"",blocked:false,blockReason:"",indicator:"Matrículas",goal:null,actual:null,budget:null,investment:null,ackVersion:0,archived:false,checklist:checklist("Campanha geral"),comments:[],history:[],learning:{worked:"",challenges:"",decision:"",pendingReason:""},demo:false,updatedAt:new Date().toISOString(),...data};}
 function seedData(){ return { units: [...OFFICIAL_UNITS], campaigns: [], tasks: [] }; }
 function Tag({children,tone="neutral"}){return <span className={"tag "+tone}>{children}</span>;}
 function UnitName({units,id}){return units.find(u=>u.id===id)?.name||"Unidade não cadastrada";}
@@ -60,7 +62,7 @@ function TaskCard({item,units,onOpen,compact=false,drag=true}) {
  const done=item.checklist.filter(c=>c.done).length, total=item.checklist.length;
  const overdue=item.due<day()&&item.stage!=="Concluído";
  return <article className={"task-card "+(compact?"compact":"")} draggable={drag} onDragStart={e=>{e.dataTransfer.setData("text/plain",item.id);e.dataTransfer.effectAllowed="move";}}>
- <div className="card-meta"><Tag tone={item.priority==="Urgente"?"danger":item.priority==="Alta"?"warning":"neutral"}>{item.priority}</Tag>{item.demo&&<Tag>Demo</Tag>}{item.blocked&&<Tag tone="danger">Bloqueada</Tag>}</div>
+ <div className="card-meta"><Tag tone={item.priority==="Urgente"?"danger":item.priority==="Alta"?"warning":"neutral"}>{item.priority}</Tag>{item.archived&&<Tag>Arquivada</Tag>}{item.demo&&<Tag>Demo</Tag>}{item.blocked&&<Tag tone="danger">Bloqueada</Tag>}</div>
  <button className="task-title" onClick={()=>onOpen(item)}>{item.title}</button>
  <div className="task-unit"><Building2 size={13}/><UnitName units={units} id={item.unitId}/></div>
  <div className="progress-track"><span style={{width:(total?100*done/total:0)+"%"}}/></div>
@@ -75,7 +77,7 @@ export default function Home({accessRole}) {
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");}},[]);
+ useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");}},[]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
@@ -132,7 +134,7 @@ export default function Home({accessRole}) {
   const q=filter.q.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   return (!q||search.includes(q))&&(!filter.unit||t.unitId===filter.unit)&&(!filter.priority||t.priority===filter.priority)&&(!filter.stage||t.stage===filter.stage)&&(!filter.campaign||t.campaignId===filter.campaign)&&(!filter.category||t.category===filter.category)&&(!filter.owner||t.owner.toLowerCase().includes(filter.owner.toLowerCase()))&&(!filter.period||!t.due||(filter.period==="overdue"?t.due<day()&&t.stage!=="Concluído":filter.period==="week"?t.due>=day()&&t.due<=day(7):true));
  }),[tasks,filter,units]);
- const openCount=tasks.filter(t=>t.stage!=="Concluído").length;
+ const openCount=tasks.filter(t=>t.stage!=="Concluído"&&!t.archived).length;
  const overdue=tasks.filter(t=>t.stage!=="Concluído"&&t.due<day()).length;
  const pending=tasks.filter(t=>t.stage==="Aguardando aprovação").length;
  const upcoming=tasks.filter(t=>t.stage!=="Concluído"&&t.due>=day()&&t.due<=day(7)).length;
@@ -148,7 +150,7 @@ export default function Home({accessRole}) {
   const updated={...editing,updatedAt:new Date().toISOString(),history:[...(editing.history||[]),{at:new Date().toISOString(),action:exists?"Demanda editada":"Demanda criada",by:"Sessão de demonstração"}]};
   setTasks(list=>exists?list.map(t=>t.id===editing.id?updated:t):[updated,...list]);setDrawer(null);setError("");notify("Demanda salva localmente.");
  }
- function newCampaign(){setError("");setCampaignDraft({id:uid(),title:"",description:"",indicator:"Matrículas",goal:null,version:1,units:[],demo:false,createdAt:new Date().toISOString()});setDrawer("campaign");}
+ function newCampaign(){setError("");setCampaignDraft({id:uid(),title:"",description:"",indicator:"Matrículas",goal:null,version:1,units:[],archived:false,demo:false,createdAt:new Date().toISOString()});setDrawer("campaign");}
  function editCampaign(c){setError("");setCampaignDraft(JSON.parse(JSON.stringify(c)));setDrawer("campaign");}
  function saveCampaign(){
   if(!campaignDraft?.title?.trim()){setError("Informe o título da campanha.");return;}
@@ -183,7 +185,7 @@ export default function Home({accessRole}) {
   <aside className={"sidebar "+(mobile?"mobile-open":"")}>
    <div className="brand"><div className="brand-logo"><img src="/logo_v2.png" alt="26fit" width="100" height="54"/></div><div className="brand-copy"><strong>Central</strong><small>Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
    <div className="sidebar-caption">ESPAÇO DE TRABALHO</div>
-   <nav>{NAV.filter(([name])=>(name!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
+   <nav>{NAV.filter(([name])=>(name!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&(name!=="Histórico"||["developer","admin","gestor"].includes(accessRole))&&(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
    <div className="sidebar-bottom"><div className="sidebar-footer"><strong>26fit • Central Comercial</strong><small>Planejamento e execução da rede</small></div></div>
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
@@ -223,7 +225,7 @@ export default function Home({accessRole}) {
    </>}
    {nav==="Campanhas"&&<>
     <div className="heading-row"><div><div className="eyebrow">PLANEJAMENTO DA REDE</div><h1>Campanhas</h1><p>Uma estratégia central, com entregas e metas locais.</p></div><Button onClick={newCampaign}><Plus size={17}/> Nova campanha</Button></div>
-    <div className="campaign-grid">{campaigns.map(c=>{const t=campaignTotal(c);const linked=tasks.filter(d=>d.campaignId===c.id);return <article key={c.id} className="campaign-card"><div className="card-meta"><Tag tone="neutral">Versão {c.version}</Tag>{c.demo&&<Tag>Demo</Tag>}</div><h3>{c.title}</h3><p>{c.description}</p><div className="campaign-metrics"><div><small>Unidades participantes</small><strong>{c.units.length}</strong></div><div><small>Entregas vinculadas</small><strong>{linked.length}</strong></div><div><small>Resultado ({c.indicator})</small><strong>{t.n?t.sum:"Não informado"}</strong></div></div><div className="card-end"><button className="text-button" onClick={()=>{setDetailCamp(c.id);setNav("Campanhas");}}>Abrir campanha <ArrowRight size={16}/></button><button className="icon-button" onClick={()=>editCampaign(c)} title="Editar campanha"><Pencil size={17}/></button></div></article>})}{campaigns.length===0&&<div className="empty">Nenhuma campanha cadastrada.</div>}</div>
+    <div className="campaign-grid">{campaigns.map(c=>{const t=campaignTotal(c);const linked=tasks.filter(d=>d.campaignId===c.id);return <article key={c.id} className="campaign-card"><div className="card-meta"><Tag tone="neutral">Versão {c.version}</Tag>{c.archived&&<Tag>Arquivada</Tag>}{c.demo&&<Tag>Demo</Tag>}</div><h3>{c.title}</h3><p>{c.description}</p><div className="campaign-metrics"><div><small>Unidades participantes</small><strong>{c.units.length}</strong></div><div><small>Entregas vinculadas</small><strong>{linked.length}</strong></div><div><small>Resultado ({c.indicator})</small><strong>{t.n?t.sum:"Não informado"}</strong></div></div><div className="card-end"><button className="text-button" onClick={()=>{setDetailCamp(c.id);setNav("Campanhas");}}>Abrir campanha <ArrowRight size={16}/></button><button className="icon-button" onClick={()=>editCampaign(c)} title="Editar campanha"><Pencil size={17}/></button></div></article>})}{campaigns.length===0&&<div className="empty">Nenhuma campanha cadastrada.</div>}</div>
     {activeCampaign&&<div className="campaign-detail panel"><div className="section-title"><div><div className="eyebrow">ENTREGAS DA CAMPANHA</div><h3>{activeCampaign.title}</h3><p>{activeCampaign.indicator} · versão {activeCampaign.version}</p></div><button className="icon-button" title="Fechar" onClick={()=>setDetailCamp(null)}><X size={18}/></button></div><p>{activeCampaign.description}</p><div className="summary-grid"><div><small>Meta central</small><strong>{activeCampaign.goal??"Não informada"}</strong></div><div><small>Realizado consolidado</small><strong>{campaignTotal(activeCampaign).n?campaignTotal(activeCampaign).sum:"Não informado"}</strong></div><div><small>Demandas que contribuíram</small><strong>{campaignTotal(activeCampaign).n}</strong></div><div><small>Atingimento</small><strong>{percent(ratio(campaignTotal(activeCampaign).n?campaignTotal(activeCampaign).sum:null,activeCampaign.goal))}</strong></div></div><div className="linked-list">{tasks.filter(t=>t.campaignId===activeCampaign.id).map(t=><button key={t.id} onClick={()=>openTask(t)}><span><strong><UnitName units={units} id={t.unitId}/></strong><small>{t.stage}{t.blocked?" · Bloqueada":""}{t.ackVersion<activeCampaign.version?" · Leitura pendente":""}</small></span><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.campaignId===activeCampaign.id)&&<div className="empty">Sem entregas vinculadas.</div>}</div></div>}
    </>}
    {nav==="Calendário"&&<><div className="heading-row"><div><div className="eyebrow">AGENDA DE ENTREGAS</div><h1>Calendário</h1><p>Prazos de todas as demandas.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div><CalendarView tasks={tasks} year={year} month={month} setYear={setYear} setMonth={setMonth} onOpen={openTask}/></>}
@@ -308,6 +310,7 @@ export default function Home({accessRole}) {
     });setDrawer("campaign");}}
     onGoTasks={()=>setNav("Demandas")}
    />}
+   {nav==="Histórico"&&<HistoryDashboard units={units}/>}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}
    {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>As demandas, campanhas e aprendizados ainda ficam salvos neste navegador (localStorage). O cadastro de unidades, os usuários e os indicadores de churn já utilizam o Neon compartilhado. Não utilize dados comerciais sensíveis nos módulos locais até concluirmos a migração para o banco.</Notice><div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup local</h3><p>Exportação e importação dos dados deste navegador</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label></div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
    </main>
@@ -322,10 +325,10 @@ export default function Home({accessRole}) {
    <div className="form-section"><h3><CircleAlert size={18}/> Bloqueios e conclusão</h3><label className="toggle-line"><input type="checkbox" checked={!!editing.blocked} onChange={e=>setEditing(d=>({...d,blocked:e.target.checked}))}/> Demanda bloqueada</label>{editing.blocked&&<Field label="Motivo do bloqueio *"><textarea value={editing.blockReason||""} onChange={e=>setEditing(d=>({...d,blockReason:e.target.value}))}/></Field>}
    {editing.stage==="Concluído"&&<div className="learning-input"><Field label="O que funcionou? *"><textarea value={editing.learning?.worked||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,worked:e.target.value}}))}/></Field><Field label="Quais foram as dificuldades? *"><textarea value={editing.learning?.challenges||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,challenges:e.target.value}}))}/></Field><Field label="Recomendação *"><select value={editing.learning?.decision||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,decision:e.target.value}}))}><option value="">Selecione</option><option>Repetir</option><option>Ajustar</option><option>Encerrar</option></select></Field>{editing.checklist.some(c=>c.required&&!c.done)&&<Field label="Justificativa para atividades obrigatórias pendentes *"><textarea value={editing.learning?.pendingReason||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,pendingReason:e.target.value}}))}/></Field>}</div>}</div>
    <div className="form-section"><h3><MessageSquare size={18}/> Comentários e histórico</h3><div className="comment-list">{(editing.comments||[]).map(c=><div key={c.id} className="comment"><strong>Usuário demonstrativo</strong><p>{c.text}</p><small>{dateFmt(c.at?.slice(0,10))}</small></div>)}</div><textarea id="new-comment" rows={2} placeholder="Registre um comentário ou aprendizado..."/><button className="add-link" onClick={()=>{const el=document.getElementById("new-comment");const value=el?.value?.trim();if(value){setEditing(d=>({...d,comments:[...(d.comments||[]),{id:uid(),at:new Date().toISOString(),text:value}]}));el.value="";}}}><Plus size={15}/> Adicionar comentário</button>{(editing.history||[]).slice(-4).reverse().map((h,i)=><div className="history" key={i}>{h.action} · {h.by}</div>)}</div>
-  </div><div className="drawer-footer"><Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask}><Save size={16}/> Salvar demanda</Button></div></div></div>}
+  </div><div className="drawer-footer">{tasks.some(t=>t.id===editing.id)&&<Button kind="secondary" onClick={toggleTaskArchived}><Archive size={16}/> {editing.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask} disabled={!!editing.archived}><Save size={16}/> Salvar demanda</Button></div></div></div>}
   {drawer==="campaign"&&campaignDraft&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer campaign-drawer"><div className="drawer-head"><div><span className="eyebrow">CAMPANHA DA REDE</span><h2>Planejamento central</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content"><Notice>Ao salvar, será criada uma entrega para cada unidade selecionada que ainda não tenha uma demanda vinculada. Retirar unidades não apaga históricos.</Notice>{error&&<div className="validation">{error}</div>}<Field label="Nome da campanha *"><input value={campaignDraft.title} onChange={e=>setCampaignDraft(d=>({...d,title:e.target.value}))}/></Field><Field label="Orientações da gestão (versionadas)"><textarea rows={5} value={campaignDraft.description} onChange={e=>setCampaignDraft(d=>({...d,description:e.target.value}))}/></Field><div className="form-pair"><Field label="Indicador consolidado"><select value={campaignDraft.indicator} onChange={e=>setCampaignDraft(d=>({...d,indicator:e.target.value}))}>{METRICS.map(m=><option key={m}>{m}</option>)}</select></Field><Field label="Meta consolidada"><input type="number" min="0" value={campaignDraft.goal??""} onChange={e=>setCampaignDraft(d=>({...d,goal:e.target.value===""?null:Number(e.target.value)}))}/></Field></div><div className="form-section"><h3><Building2 size={18}/> Unidades participantes</h3>
    <CampaignUnitSelector units={units} selectedIds={campaignDraft.units||[]} onChange={unitIds=>setCampaignDraft(d=>({...d,units:unitIds}))}/>
-   </div></div><div className="drawer-footer"><Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveCampaign}><Save size={16}/> Salvar campanha</Button></div></div></div>}
+   </div></div><div className="drawer-footer">{campaigns.some(c=>c.id===campaignDraft.id)&&<Button kind="secondary" onClick={toggleCampaignArchived}><Archive size={16}/> {campaignDraft.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveCampaign} disabled={!!campaignDraft.archived}><Save size={16}/> Salvar campanha</Button></div></div></div>}
  </div>;
 }
 function CalendarView({tasks,month,year,setMonth,setYear,onOpen}){
