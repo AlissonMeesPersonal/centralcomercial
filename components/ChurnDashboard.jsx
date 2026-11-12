@@ -139,10 +139,11 @@ export default function ChurnDashboard({units=[],accessRole}){
   saveCSV("26fit_modelo_churn_"+filePeriod+".csv",table);
  }
  function downloadResults(){
-  const table=[["id_unidade","unidade","estado","competencia","ativos_inicio","cancelamentos","churn_percentual","matriculas","reativacoes","ativos_fim"]];
+  const table=[["id_unidade","unidade","estado","competencia","ativos_inicio","cancelados","vencidos","desistencias","suspensos","total_saidas","churn_percentual","novos","renovados","retornos","retornos_suspensao","total_entradas","ativos_fim","fonte"]];
   for(const x of ranked)if(x.row)table.push([
-   x.unit.id,x.unit.name,x.unit.state,x.row.month,x.row.active_start,x.row.cancellations,
-   x.rate===null?"":x.rate.toFixed(4),x.row.enrollments??"",x.row.reactivations??"",x.row.active_end??""
+   x.unit.id,x.unit.name,x.unit.state,x.row.month,x.row.active_start,
+   x.row.cancelled_count??"",x.row.expired??"",x.row.dropouts??"",x.row.suspended??"",x.row.total_exits??x.row.cancellations,
+   x.rate===null?"":x.rate.toFixed(4),x.row.enrollments??"",x.row.renewals??"",x.row.reactivations??"",x.row.suspension_returns??"",x.row.total_entries??"",x.row.active_end??"",x.row.source||"manual"
   ]);
   saveCSV("26fit_churn_"+actualMonth+".csv",table);
  }
@@ -242,6 +243,32 @@ export default function ChurnDashboard({units=[],accessRole}){
    <KPICard title="Unidades com dados" value={coverage+" / "+eligible.length} description={"Cobertura: "+(eligible.length?fmtPct(coverage/eligible.length*100):"Não informado")} Icon={Building2} iconTone="churn-green"/>
   </div>
 
+  {networkOfficial&&<section className="panel churn-source-overview">
+   <div className="section-title"><div><h3>Composição do churn da rede</h3>
+    <p>Valores do relatório exportado · {dateLabel(actualMonth)} · {Number(sourceTotal.source_rows)} registros de origem</p></div>
+    <span className="tag">Fonte: Churn.xlsx</span></div>
+   <div className="churn-breakdown">
+    {[
+     ["Cancelados",sourceTotal.cancelled],
+     ["Vencidos",sourceTotal.expired],
+     ["Desistências",sourceTotal.dropouts],
+     ["Suspensos",sourceTotal.suspended],
+     ["Entradas totais",sourceTotal.total_entries_reported],
+     ["Saídas totais",sourceTotal.total_exits_reported]
+    ].map(([label,value])=><div key={label}><small>{label}</small><strong>{fmtCount(value)}</strong></div>)}
+   </div>
+   <p className="churn-source-caption">No relatório original, o churn considera <strong>todas as saídas</strong>. Os cancelados isoladamente não representam o indicador completo. O consolidado usa o total informado no rodapé da planilha.</p>
+   {discrepancy!==0&&<div className="churn-source-warning"><Info size={16}/>
+     Há uma diferença de {fmtCount(Math.abs(discrepancy))} saída(s) entre o rodapé da planilha ({fmtCount(sourceTotal.total_exits_reported)}) e a soma das unidades ({fmtCount(sourceTotal.exits_detail)}). Mantivemos ambos os valores, sem distribuir a diferença arbitrariamente.</div>}
+  </section>}
+  {canImport&&unmatchedMonth.length>0&&<details className="churn-pending-matches">
+    <summary><AlertCircle size={18}/> {unmatchedMonth.length} registro(s) do mês aguardando conciliação com o diretório <ChevronDown size={17}/></summary>
+    <div className="churn-pending-help">Os resultados foram preservados pelo código da planilha, mas ainda não foram atribuídos a uma unidade do diretório. Eles estão incluídos nos totais gerais oficiais, porém não nos filtros por estado.</div>
+    <div className="churn-mini-table"><table><thead><tr><th>Código</th><th>Nome na planilha</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th></tr></thead><tbody>
+     {unmatchedMonth.map(r=><tr key={r.source_code}><td>{r.source_code}</td><td>{r.source_label}</td><td>{fmtCount(r.active_start)}</td><td>{fmtCount(r.total_exits)}</td><td>{fmtPct(r.churn)}</td></tr>)}
+    </tbody></table></div>
+  </details>}
+
   <div className="churn-main-grid">
    <section className="panel churn-trend-panel">
     <div className="section-title"><div><h3>Evolução do churn</h3><p>Taxa mensal consolidada ponderada · {year}</p></div><BarChart3 size={18} color="#8a969e"/></div>
@@ -281,8 +308,8 @@ export default function ChurnDashboard({units=[],accessRole}){
 
   {unitDetail&&<section className="panel churn-detail-panel">
    <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.city} · {unitDetail.state}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
-   <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th><th>Novas matrículas</th><th>Reativações</th><th>Ativos fim</th></tr></thead>
-    <tbody>{unitHistory.map(row=><tr key={row.month}><td>{dateLabel(row.month)}</td><td>{fmtCount(row.active_start)}</td><td>{fmtCount(row.cancellations)}</td><td>{fmtPct(row.churn)}</td><td>{row.enrollments===null?"Não informado":fmtCount(row.enrollments)}</td><td>{row.reactivations===null?"Não informado":fmtCount(row.reactivations)}</td><td>{row.active_end===null?"Não informado":fmtCount(row.active_end)}</td></tr>)}</tbody></table>
+   <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Cancelados</th><th>Vencidos</th><th>Desistências</th><th>Suspensos</th><th>Total saídas</th><th>Churn</th><th>Novos</th><th>Renovados</th><th>Retornos</th><th>Retorno suspensões</th><th>Total entradas</th><th>Ativos fim</th></tr></thead>
+    <tbody>{unitHistory.map(row=><tr key={row.month}><td>{dateLabel(row.month)}</td><td>{fmtCount(row.active_start)}</td><td>{row.cancelled_count==null?"—":fmtCount(row.cancelled_count)}</td><td>{row.expired==null?"—":fmtCount(row.expired)}</td><td>{row.dropouts==null?"—":fmtCount(row.dropouts)}</td><td>{row.suspended==null?"—":fmtCount(row.suspended)}</td><td>{fmtCount(row.total_exits??row.cancellations)}</td><td>{fmtPct(row.churn)}</td><td>{row.enrollments==null?"—":fmtCount(row.enrollments)}</td><td>{row.renewals==null?"—":fmtCount(row.renewals)}</td><td>{row.reactivations==null?"—":fmtCount(row.reactivations)}</td><td>{row.suspension_returns==null?"—":fmtCount(row.suspension_returns)}</td><td>{row.total_entries==null?"—":fmtCount(row.total_entries)}</td><td>{row.active_end==null?"—":fmtCount(row.active_end)}</td></tr>)}</tbody></table>
     {!unitHistory.length&&<div className="empty">Esta unidade ainda não possui dados no ano selecionado.</div>}
    </div>
   </section>}
@@ -299,7 +326,7 @@ export default function ChurnDashboard({units=[],accessRole}){
     <span><b>{b.rows_total}</b> registros · {b.rows_inserted} novos · {b.rows_updated} atualizados</span>
    </div>):<p className="team-secondary">Nenhuma importação realizada até agora.</p>}
   </section>}
-  <p className="churn-footnote"><Info size={14}/> Faixas de cor (até 3%, de 3% a 5%, acima de 5%) são referências visuais, não metas oficiais da 26fit. A base inicial, os cancelamentos e os registros devem seguir o mesmo critério em todas as unidades.</p>
+  <p className="churn-footnote"><Info size={14}/> Faixas de cor (até 3%, de 3% a 5%, acima de 5%) são referências visuais, não metas oficiais da 26fit. A base inicial, os componentes de saídas e as competências devem seguir o mesmo critério em todas as unidades.</p>
  </section>;
 }
 
