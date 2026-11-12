@@ -84,7 +84,7 @@ export default function Home({accessRole}) {
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
- const privateUnitFields=new Set(["leader","leaderContact","coordinator","coordinatorContact","cnpj","cep","street","number","complement","administrativeName"]);
+ const privateUnitFields=new Set(["leader","leaderContact","coordinator","coordinatorContact","cnpj","cep","street","number","complement","administrativeName","churnCode"]);
  function publicUnitForStorage(unit){
   if(!unit||typeof unit!=="object")return unit;
   return Object.fromEntries(Object.entries(unit).filter(([field])=>!privateUnitFields.has(field)));
@@ -118,7 +118,7 @@ export default function Home({accessRole}) {
  useEffect(()=>{if(ready){try{localStorage.setItem("26fit-central-comercial-demo-v1",JSON.stringify({units:units.map(publicUnitForStorage),campaigns,tasks}));}catch{}}},[ready,units,campaigns,tasks]);
  const normalizeSearch=(v)=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const directoryUnits=units.filter(u=>showDemoUnits||!u.demo).filter(u=>{
-    const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator,u.leader,u.cnpj,u.cep,u.administrativeName].filter(Boolean).join(" "));
+    const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator,u.leader,u.cnpj,u.cep,u.administrativeName,u.churnCode].filter(Boolean).join(" "));
     return (!directoryFilter.q||search.includes(normalizeSearch(directoryFilter.q)))
       &&(!directoryFilter.state||u.state===directoryFilter.state)
       &&(!directoryFilter.region||u.region===directoryFilter.region)
@@ -353,7 +353,7 @@ export default function Home({accessRole}) {
       <div><strong>{units.filter(u=>u.demo).length}</strong><small>Exemplos locais preservados</small></div>
     </div>
     <div className="directory-filters">
-      <label className="directory-search"><Search size={17}/><input value={directoryFilter.q} onChange={e=>setDirectoryFilter(f=>({...f,q:e.target.value}))} placeholder="Pesquisar nome, cidade ou endereço" aria-label="Pesquisar unidades"/></label>
+      <label className="directory-search"><Search size={17}/><input value={directoryFilter.q} onChange={e=>setDirectoryFilter(f=>({...f,q:e.target.value}))} placeholder="Pesquisar nome, código churn, cidade ou endereço" aria-label="Pesquisar unidades"/></label>
       <select value={directoryFilter.state} onChange={e=>setDirectoryFilter(f=>({...f,state:e.target.value}))} aria-label="Filtrar estado"><option value="">Todos os estados</option>{publicStates.map(x=><option key={x} value={x}>{x}</option>)}</select>
       <select value={directoryFilter.region} onChange={e=>setDirectoryFilter(f=>({...f,region:e.target.value}))} aria-label="Filtrar região"><option value="">Todas as regiões</option>{publicRegions.map(x=><option key={x}>{x}</option>)}</select>
       <select value={directoryFilter.status} onChange={e=>setDirectoryFilter(f=>({...f,status:e.target.value}))} aria-label="Filtrar situação"><option value="">Todas as situações</option><option value="Aberta">Abertas</option><option value="Inauguração">Em inauguração</option></select>
@@ -369,7 +369,7 @@ export default function Home({accessRole}) {
       {directoryUnits.map(u=><article className="unit-tile" key={u.id}>
         <div className="unit-icon"><Building2 size={21}/></div>
         <div className="unit-content">
-          <div className="unit-label"><h3>{u.name}</h3>{u.demo?<Tag>Fictícia</Tag>:u.type==="Matriz"?<Tag>Matriz</Tag>:u.type==="Eleve"?<Tag>Eleve</Tag>:u.status==="Inauguração"?<Tag tone="warning">Inauguração</Tag>:<Tag tone="success">Aberta</Tag>}</div>
+          <div className="unit-label"><h3>{u.name}</h3>{!u.demo&&<span className={"unit-churn-code "+(u.churnCode==null?"unmatched":"")} title="Código da unidade no relatório de churn">{u.churnCode==null?"Sem código churn":"Churn "+String(u.churnCode).padStart(2,"0")}</span>}{u.demo?<Tag>Fictícia</Tag>:u.type==="Matriz"?<Tag>Matriz</Tag>:u.type==="Eleve"?<Tag>Eleve</Tag>:u.status==="Inauguração"?<Tag tone="warning">Inauguração</Tag>:<Tag tone="success">Aberta</Tag>}</div>
           <p>{u.city||"Cidade não informada"} {u.state?"· "+u.state:""} {u.region?"· "+u.region:""}</p>
           {u.address&&<p className="unit-address">{u.address}</p>}
           {(u.leader||u.coordinator)&&<div className="directory-people">
