@@ -14,17 +14,17 @@ export default function AuthPasswordVisibility(){
   if(!root)return;
 
   const setup=()=>{
-   const inputs=root.querySelectorAll('input[type="password"],input[data-26fit-password-eye="true"]');
+   const inputs=root.querySelectorAll('input[type="password"],input[data-fit-password-eye="true"]');
    for(const input of inputs){
     if(!(input instanceof HTMLInputElement))continue;
 
     // Campos como cadastro já possuem botão nativo do Neon Auth UI.
     const parent=input.parentElement;
     if(!parent)continue;
-    if(input.dataset.26fitPasswordEye!=="true"){
+    if(input.dataset.fitPasswordEye!=="true"){
      const existing=parent.querySelector("button");
      if(existing)continue;
-     input.dataset.26fitPasswordEye="true";
+     input.dataset.fitPasswordEye="true";
      parent.classList.add("auth-password-eye-wrap");
      const button=document.createElement("button");
      button.type="button";
