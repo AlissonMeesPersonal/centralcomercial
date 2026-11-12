@@ -25,7 +25,7 @@ export default function UnitsManager({units,onSaved,notify}){
   .catch(e=>{if(live)setAccess({loading:false,canEdit:false,error:e.message});});
   return ()=>{live=false};
  },[]);
- const filtered=useMemo(()=>units.filter(u=>!u.demo&&norm([u.name,u.city,u.state,u.leader,u.coordinator,u.cnpj].join(" ")).includes(norm(q))).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[units,q]);
+ const filtered=useMemo(()=>units.filter(u=>!u.demo&&norm([u.name,u.city,u.state,u.leader,u.coordinator,u.cnpj,u.churnCode].join(" ")).includes(norm(q))).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[units,q]);
  const open=u=>{setEdit({...u});setError("");setConflict(false)};
  async function save(){
   if(!edit||saving)return;
@@ -52,7 +52,7 @@ export default function UnitsManager({units,onSaved,notify}){
     <div className="editor-summary"><div><ShieldCheck size={19}/> Perfil autorizado: <strong>{access.role==="admin"?"Administrador":"Gestor comercial"}</strong></div><span>Edição compartilhada no Neon, com histórico e revisão.</span></div>
     <div className="editor-toolbar"><label><Search size={16}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar nome, cidade, líder ou CNPJ"/></label><span>{filtered.length} registros</span></div>
     <div className="editor-rows">{filtered.map(u=><div className="editor-row" key={u.id}><div className="editor-building"><Building2 size={19}/></div>
-      <div className="editor-name"><strong>{u.name}</strong><small>{u.city} · {u.state} · {u.type}</small></div>
+      <div className="editor-name"><strong>{u.name}</strong><small>{u.city} · {u.state} · {u.type} · {u.churnCode==null?"Sem código churn":"Churn "+String(u.churnCode).padStart(2,"0")}</small></div>
       <div className="editor-leader"><span>Líder</span><strong>{u.leader||"Não informado"}</strong></div>
       <div className="editor-leader"><span>Coordenação</span><strong>{u.coordinator||"Não informado"}</strong></div>
       <button onClick={()=>open(u)}><Pencil size={15}/> Editar</button></div>)}
@@ -61,7 +61,7 @@ export default function UnitsManager({units,onSaved,notify}){
    </>}
   {edit&&access.canEdit&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setEdit(null);}}><div className="drawer">
    <div className="drawer-head"><div><div className="eyebrow">{edit.id?"EDIÇÃO":"NOVO CADASTRO"}</div><h2>{edit.id?"Editar unidade":"Adicionar unidade"}</h2></div><button className="icon-button" onClick={()=>setEdit(null)} disabled={saving}><X size={20}/></button></div>
-   <div className="drawer-content"><div className="editor-info"><FileText size={17}/> {edit.id?"Dados vinculados às demandas serão preservados.":"A nova unidade estará disponível nas campanhas e demandas após salvar."}</div>
+   <div className="drawer-content"><div className="editor-info"><FileText size={17}/> {edit.id?<>Código do relatório de churn: <strong>{edit.churnCode==null?"Não vinculado":"#"+String(edit.churnCode).padStart(2,"0")}</strong>. A correspondência deve ser alterada na aba Churn das unidades, não neste cadastro.</>:"A nova unidade estará disponível nas campanhas e demandas após salvar."}</div>
     {error&&<div className="validation"><AlertTriangle size={17}/>{error}{conflict&&<button className="editor-reload" onClick={()=>window.location.reload()}><RefreshCcw size={14}/> Recarregar</button>}</div>}
     <div className="editor-form">{fields.map(([field,label,required])=><label className={"field "+(["name","address","mapUrl","siteUrl"].includes(field)?"wide":"")} key={field}>
       <span>{label}{required?" *":""}</span>
