@@ -14,6 +14,8 @@ export default function TeamManagement({accessRole,units=[]}){
  const [inviteUrl,setInviteUrl]=useState(""),[saving,setSaving]=useState(false),[copied,setCopied]=useState(false);
  const [inviteUnitIds,setInviteUnitIds]=useState([]),[editingMember,setEditingMember]=useState(null),[editUnitIds,setEditUnitIds]=useState([]);
  const [assignError,setAssignError]=useState(""),[assignSaving,setAssignSaving]=useState(false);
+ const [roleEditor,setRoleEditor]=useState(null),[roleDraft,setRoleDraft]=useState(""),[roleUnits,setRoleUnits]=useState([]);
+ const [roleSaving,setRoleSaving]=useState(false),[roleError,setRoleError]=useState("");
  const roles=available[accessRole]||[];
  async function refresh(){
   setLoading(true);
@@ -63,11 +65,46 @@ export default function TeamManagement({accessRole,units=[]}){
   }catch(e){setAssignError(e.message);}
   finally{setAssignSaving(false);}
  }
+ function editRole(member){
+  setRoleEditor(member);setRoleDraft(member.role);
+  setRoleUnits([...(member.unit_ids||[])]);setRoleError("");
+ }
+ async function saveRole(){
+  if(!roleEditor||roleSaving)return;
+  if(["lider","colaborador"].includes(roleDraft)&&roleUnits.length===0){
+   setRoleError("Selecione pelo menos uma unidade para este cargo.");return;
+  }
+  setRoleSaving(true);setRoleError("");
+  try{
+   const response=await fetch("/api/team",{
+    method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"set_role",email:roleEditor.email,role:roleDraft,
+      roleRevision:roleEditor.role_revision||0,unitIds:roleUnits})
+   });
+   const payload=await response.json();
+   if(!response.ok)throw Error(payload.error||"Não foi possível atualizar o cargo.");
+   setRoleEditor(null);setNotice(payload.message||"Cargo atualizado.");await refresh();
+  }catch(e){setRoleError(e.message||"Falha ao alterar o cargo.");}
+  finally{setRoleSaving(false);}
+ }
+ const canEditRole=member=>roles.includes(member.role);
  const show=useMemo(()=>members.filter(x=>normalize([x.email,x.name,x.role].join(" ")).includes(normalize(q))),[members,q]);
  return <section className="team-page">
   <div className="heading-row"><div><div className="eyebrow">ACESSOS DA REDE</div><h1>Equipe</h1><p>Cadastre as pessoas autorizadas e controle seus perfis.</p></div>
   <span className="team-count"><UsersRound size={16}/>{members.length} membros</span></div>
   <div className="team-privacy"><ShieldCheck size={18}/><div><strong>Convites individuais e gestão de acessos</strong><span>Cada pessoa usa seu próprio e-mail. As permissões são verificadas no servidor.</span></div></div>
+  <section className="team-permissions">
+   <div className="team-permissions-head"><div><h3>Cargos e permissões</h3><p>Hierarquia de perfis para cadastro, autorização e acesso administrativo.</p></div><ShieldCheck size={20}/></div>
+   <div className="team-permission-grid">
+    {[
+     ["Administrador(a)","Configura usuários, unidades e dados da rede; pode conceder cargos de gestão, liderança e colaboração.","admin"],
+     ["Gestor comercial","Gerencia convites operacionais, cadastros da rede e relatórios comerciais; pode atribuir líderes e colaboradores.","gestor"],
+     ["Líder de unidade","Tem acesso aos indicadores das unidades vinculadas; realiza o acompanhamento local.","lider"],
+     ["Colaborador(a)","Perfil operacional sem acesso à administração da equipe e aos dados consolidados de churn.","colaborador"]
+    ].map(([name,detail,id])=><div className="team-permission-card" key={id}><span className={"team-permission-dot "+id}/><strong>{name}</strong><p>{detail}</p></div>)}
+   </div>
+   <p className="team-permissions-note">A conta técnica de desenvolvimento é separada. As permissões de equipe, unidades e churn são validadas no servidor. O isolamento das demandas e campanhas por usuário será concluído quando esses módulos forem migrados do armazenamento local para o banco compartilhado.</p>
+  </section>
   <div className="team-layout">
    <section className="panel team-invite-card">
     <div className="section-title"><div><h3>Convidar colaborador</h3><p>Gere um link pessoal válido por sete dias.</p></div><UserPlus size={19} color="#737d87"/></div>
@@ -95,10 +132,24 @@ export default function TeamManagement({accessRole,units=[]}){
      <div className="team-person-main"><strong>{member.name}</strong><small>{member.email}</small></div>
      <div className="team-role"><span>{roleLabels[member.role]||member.role}</span><small>Desde {formatDate(member.created_at)}</small></div>
      <span className={"tag "+(member.status==="active"?"success":"danger")}>{member.status==="active"?"Ativo":"Suspenso"}</span>
+     {canEditRole(member)&&<button className="team-role-edit" title={"Alterar cargo de "+member.name} onClick={()=>editRole(member)}><ShieldCheck size={15}/> Alterar cargo</button>}
      {roles.includes(member.role)&&<button className="team-units-edit" title={"Gerenciar unidades de "+member.name} onClick={()=>openUnitEditor(member)}><Building2 size={15}/> {member.unit_ids?.length||0} unidades</button>}
      {roles.includes(member.role)&&<button className="team-toggle" title={member.status==="active"?"Suspender acesso":"Reativar acesso"} onClick={()=>toggle(member)}>{member.status==="active"?<UserX size={17}/>:<UserCheck size={17}/>}</button>}
    </div>):<p className="team-secondary">Nenhum usuário cadastrado.</p>}
   </section>
+  {roleEditor&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!roleSaving)setRoleEditor(null);}}>
+   <div className="drawer team-role-drawer">
+    <div className="drawer-head"><div><div className="eyebrow">GESTÃO DE PERMISSÕES</div><h2>Alterar cargo</h2></div><button className="icon-button" onClick={()=>!roleSaving&&setRoleEditor(null)} aria-label="Fechar"><X size={19}/></button></div>
+    <div className="drawer-content">
+     <div className="team-role-profile"><span className="team-avatar">{roleEditor.name?.trim()?.[0]?.toUpperCase()||"?"}</span><div><strong>{roleEditor.name}</strong><small>{roleEditor.email}</small><small>Cargo atual: {roleLabels[roleEditor.role]||roleEditor.role}</small></div></div>
+     <label className="field"><span>Novo cargo</span><select value={roleDraft} onChange={e=>setRoleDraft(e.target.value)}>{roles.map(id=><option value={id} key={id}>{roleLabels[id]}</option>)}</select></label>
+     {["lider","colaborador"].includes(roleDraft)&&<UnitPicker units={units} selected={roleUnits} onChange={setRoleUnits} label="Unidades vinculadas *"/>}
+     <div className="editor-info"><ShieldCheck size={18}/><span>O novo cargo altera as permissões de acesso. A alteração é registrada com autoria e histórico no Neon. A conta de desenvolvimento não faz parte da equipe.</span></div>
+     {roleError&&<p role="alert" className="team-error">{roleError}</p>}
+    </div>
+    <div className="drawer-footer"><button className="btn secondary" disabled={roleSaving} onClick={()=>setRoleEditor(null)}>Cancelar</button><button className="btn" disabled={roleSaving} onClick={saveRole}><Save size={16}/>{roleSaving?"Salvando…":"Salvar cargo"}</button></div>
+   </div>
+  </div>}
   {editingMember&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget&&!assignSaving)setEditingMember(null);}}>
     <div className="drawer team-assignment-drawer">
       <div className="drawer-head"><div><div className="eyebrow">UNIDADES VINCULADAS</div><h2>{editingMember.name}</h2></div><button className="icon-button" onClick={()=>!assignSaving&&setEditingMember(null)}><X size={19}/></button></div>
