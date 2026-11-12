@@ -35,7 +35,7 @@ export async function GET(request){
   const sql=database(),filters=[module,status,q,start||null,end||null];
   const predicate="($1::text='' OR module=$1) AND ($2::text='' OR status=$2) AND ($3::text='' OR title ILIKE '%'||$3||'%' OR details ILIKE '%'||$3||'%' OR actor_email ILIKE '%'||$3||'%' OR action ILIKE '%'||$3||'%') AND ($4::date IS NULL OR occurred_at >= $4::date) AND ($5::date IS NULL OR occurred_at < ($5::date + INTERVAL '1 day'))";
   const [items,total,summary]=await Promise.all([
-   sql.query("SELECT event_key,module,action,title,details,status,actor_email,unit_id,occurred_at,source FROM cc_history_feed WHERE "+predicate+" ORDER BY occurred_at DESC,event_key DESC LIMIT $6 OFFSET $7",
+   sql.query("SELECT event_key,module,action,title,details,status,CASE WHEN EXISTS(SELECT 1 FROM cc_hidden_developers h WHERE lower(h.email)=lower(actor_email)) THEN 'Administração técnica' ELSE actor_email END AS actor_email,unit_id,occurred_at,source FROM cc_history_feed WHERE "+predicate+" ORDER BY occurred_at DESC,event_key DESC LIMIT $6 OFFSET $7",
      [...filters,30,(page-1)*30]),
    sql.query("SELECT COUNT(*)::int AS count FROM cc_history_feed WHERE "+predicate,filters),
    sql.query("SELECT status,COUNT(*)::int AS count FROM cc_history_feed GROUP BY status")
