@@ -1,4 +1,5 @@
 "use client";
+import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, ClipboardList, Megaphone, CalendarDays, Building2,
@@ -23,11 +24,6 @@ const TEMPLATES = {
   "Reativação":["Definir carteira","Validar comunicação","Realizar contatos","Registrar reativações","Consolidar resultados"],
   "Retenção":["Identificar público","Planejar abordagem","Executar acompanhamento","Registrar resultados","Analisar aprendizados"]
 };
-const DEMO_UNITS=[
- {id:"modelo-a",name:"Unidade Modelo A",city:"Cidade ilustrativa",state:"RS",region:"Sul",coordinator:"Coordenação fictícia",type:"Unidade",demo:true},
- {id:"modelo-b",name:"Unidade Modelo B",city:"Cidade ilustrativa",state:"SC",region:"Sul",coordinator:"Coordenação fictícia",type:"Franquia",demo:true},
- {id:"modelo-c",name:"Unidade Modelo C",city:"Cidade ilustrativa",state:"PR",region:"Sul",coordinator:"Coordenação fictícia",type:"Unidade",demo:true}
-];
 const NAV=[
  ["Visão geral",LayoutDashboard],
  ["Demandas",ClipboardList],
@@ -46,17 +42,8 @@ function percent(x){return x===null?"Não informado":new Intl.NumberFormat("pt-B
 function ratio(n,d){return n===null||n===undefined||d===null||d===undefined||Number(d)<=0||n===""?null:(Number(n)/Number(d))*100;}
 function cost(i,r){return i===null||i===undefined||r===null||r===undefined||Number(r)<=0||i===""?null:Number(i)/Number(r);}
 function checklist(cat){return (TEMPLATES[cat]||TEMPLATES["Campanha geral"]).map((title,i)=>({id:uid(),title,done:false,required:i<3,owner:"",due:""}));}
-function task(data={}) {return {id:uid(),title:"",objective:"",category:"Campanha geral",unitId:"modelo-a",campaignId:null,owner:"Equipe local",support:"",collaborators:"",priority:"Média",due:day(7),stage:"Ideias",targetAudience:"",offer:"",channels:"",dependencies:"",blocked:false,blockReason:"",indicator:"Matrículas",goal:null,actual:null,budget:null,investment:null,ackVersion:0,checklist:checklist("Campanha geral"),comments:[],history:[],learning:{worked:"",challenges:"",decision:"",pendingReason:""},demo:false,updatedAt:new Date().toISOString(),...data};}
-function seedData(){
- const camp={id:"camp-exemplo",title:"Campanha de reativação • Exemplo",description:"Orientações de demonstração. Não executar comercialmente.",indicator:"Reativações",goal:45,version:1,units:["modelo-a","modelo-b"],demo:true,createdAt:new Date().toISOString()};
- return {units:DEMO_UNITS,campaigns:[camp],tasks:[
-  task({id:"demo-1",title:"Preparar abordagem de reativação",category:"Reativação",unitId:"modelo-a",campaignId:camp.id,stage:"Em execução",priority:"Alta",due:day(2),indicator:"Reativações",goal:25,actual:11,investment:180,budget:300,owner:"Equipe demonstrativa",demo:true,checklist:checklist("Reativação").map((a,i)=>({...a,done:i<2}))}),
-  task({id:"demo-2",title:"Validar materiais da campanha",category:"Reativação",unitId:"modelo-b",campaignId:camp.id,stage:"Aguardando aprovação",priority:"Alta",due:day(4),indicator:"Reativações",goal:20,actual:6,investment:120,budget:220,owner:"Equipe demonstrativa",demo:true}),
-  task({id:"demo-3",title:"Parceria com comércio local",category:"Parceria local",unitId:"modelo-a",stage:"Planejamento",priority:"Média",due:day(6),indicator:"Visitas agendadas",goal:30,actual:null,owner:"Equipe demonstrativa",demo:true}),
-  task({id:"demo-4",title:"Plano de ação para matrículas",category:"Estratégia de unidade",unitId:"modelo-c",stage:"Pronto para executar",priority:"Média",due:day(-1),indicator:"Matrículas",goal:18,actual:0,owner:"Equipe demonstrativa",demo:true}),
-  task({id:"demo-5",title:"Avaliar promoção encerrada",category:"Ação promocional",unitId:"modelo-b",stage:"Em avaliação",priority:"Baixa",due:day(1),indicator:"Matrículas",goal:12,actual:10,investment:420,budget:500,owner:"Equipe demonstrativa",demo:true})
- ]};
-}
+function task(data={}) {return {id:uid(),title:"",objective:"",category:"Campanha geral",unitId:"site-26fit-santa-cruz-do-sul",campaignId:null,owner:"Equipe local",support:"",collaborators:"",priority:"Média",due:day(7),stage:"Ideias",targetAudience:"",offer:"",channels:"",dependencies:"",blocked:false,blockReason:"",indicator:"Matrículas",goal:null,actual:null,budget:null,investment:null,ackVersion:0,checklist:checklist("Campanha geral"),comments:[],history:[],learning:{worked:"",challenges:"",decision:"",pendingReason:""},demo:false,updatedAt:new Date().toISOString(),...data};}
+function seedData(){ return { units: [...OFFICIAL_UNITS], campaigns: [], tasks: [] }; }
 function Tag({children,tone="neutral"}){return <span className={"tag "+tone}>{children}</span>;}
 function UnitName({units,id}){return units.find(u=>u.id===id)?.name||"Unidade não cadastrada";}
 function Button({children,onClick,kind="primary",disabled=false,title,type="button"}){return <button title={title} type={type} disabled={disabled} onClick={onClick} className={"btn "+kind}>{children}</button>;}
@@ -79,8 +66,24 @@ export default function Home() {
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
- useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(parsed.units);}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
+ const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
+ const [showDemoUnits,setShowDemoUnits]=useState(false);
+ useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
  useEffect(()=>{if(ready){try{localStorage.setItem("26fit-central-comercial-demo-v1",JSON.stringify({units,campaigns,tasks}));}catch{}}},[ready,units,campaigns,tasks]);
+ const normalizeSearch=(v)=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ const directoryUnits=units.filter(u=>showDemoUnits||!u.demo).filter(u=>{
+    const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator].filter(Boolean).join(" "));
+    return (!directoryFilter.q||search.includes(normalizeSearch(directoryFilter.q)))
+      &&(!directoryFilter.state||u.state===directoryFilter.state)
+      &&(!directoryFilter.region||u.region===directoryFilter.region)
+      &&(!directoryFilter.status||u.status===directoryFilter.status)
+      &&(!directoryFilter.kind||u.type===directoryFilter.kind)
+      &&(!directoryFilter.coordinator||normalizeSearch(u.coordinator).includes(normalizeSearch(directoryFilter.coordinator)));
+ });
+ const publicUnitCount=units.filter(u=>u.source==="26fit.com.br"&&!u.demo).length;
+ const publicStates=[...new Set(units.filter(u=>!u.demo&&u.state).map(u=>u.state))].sort();
+ const publicRegions=[...new Set(units.filter(u=>!u.demo&&u.region).map(u=>u.region))].sort();
+ const publicTypes=[...new Set(units.filter(u=>!u.demo&&u.type).map(u=>u.type))].sort();
  function notify(s){setToast(s);setTimeout(()=>setToast(""),3600);}
  function moveNav(n){setNav(n);setMobile(false);}
  const filtered=useMemo(()=>tasks.filter(t=>{
@@ -156,7 +159,7 @@ export default function Home() {
      <button className="kpi" onClick={()=>quickFilter({stage:"",period:"week"})}><span><CalendarDays size={17}/> Próximos 7 dias</span><div><strong>{upcoming}</strong><ArrowUpRight size={19}/></div><small>Entregas com prazo próximo</small></button>
     </div>
     <div className="dashboard-grid"><section className="panel"><div className="section-title"><div><h3>Minha semana</h3><p>Pendências próximas no ambiente demonstrativo</p></div><button className="text-button" onClick={()=>moveNav("Demandas")}>Ver todas <ArrowRight size={15}/></button></div><div className="weekly">{tasks.filter(t=>t.stage!=="Concluído").sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5).map(t=><button className="weekly-row" key={t.id} onClick={()=>openTask(t)}><span className={"round-icon "+(t.due<day()?"red":"")}><ClipboardList size={16}/></span><span className="weekly-info"><strong>{t.title}</strong><small><UnitName units={units} id={t.unitId}/> · {t.stage}</small></span><span className={"due "+(t.due<day()?"late":"")}>{dateFmt(t.due)}</span><ArrowUpRight size={16}/></button>)}{tasks.length===0&&<div className="empty">Nenhuma demanda cadastrada.</div>}</div></section>
-    <section className="panel"><div className="section-title"><div><h3>Execução por unidade</h3><p>Visibilidade das demandas locais</p></div><Building2 size={18} color="#9299a1"/></div><div className="unit-progress">{units.map(u=>{const x=tasks.filter(t=>t.unitId===u.id),total=x.length,completed=x.filter(t=>t.stage==="Concluído").length;return <button className="unit-progress-row" key={u.id} onClick={()=>quickFilter({unit:u.id,stage:"",period:""})}><span className="unit-initial">{u.name.replace("Unidade ","").charAt(0)}</span><div><div className="bar-caption"><strong>{u.name}</strong><small>{completed}/{total}</small></div><div className="progress-track"><span style={{width:(total?completed/total*100:0)+"%"}}/></div></div></button>})}{units.length===0&&<div className="empty">Importe o diretório oficial para iniciar.</div>}</div></section></div>
+    <section className="panel"><div className="section-title"><div><h3>Execução por unidade</h3><p>Visibilidade das demandas locais</p></div><Building2 size={18} color="#9299a1"/></div><div className="unit-progress">{units.filter(u=>!u.demo).sort((a,b)=>tasks.filter(t=>t.unitId===b.id).length-tasks.filter(t=>t.unitId===a.id).length).slice(0,6).map(u=>{const x=tasks.filter(t=>t.unitId===u.id),total=x.length,completed=x.filter(t=>t.stage==="Concluído").length;return <button className="unit-progress-row" key={u.id} onClick={()=>quickFilter({unit:u.id,stage:"",period:""})}><span className="unit-initial">{u.name.replace("Unidade ","").charAt(0)}</span><div><div className="bar-caption"><strong>{u.name}</strong><small>{completed}/{total}</small></div><div className="progress-track"><span style={{width:(total?completed/total*100:0)+"%"}}/></div></div></button>})}{units.length===0&&<div className="empty">Importe o diretório oficial para iniciar.</div>}</div></section></div>
     
    </>}
    {nav==="Demandas"&&<>
@@ -183,7 +186,49 @@ export default function Home() {
     {activeCampaign&&<div className="campaign-detail panel"><div className="section-title"><div><div className="eyebrow">ENTREGAS DA CAMPANHA</div><h3>{activeCampaign.title}</h3><p>{activeCampaign.indicator} · versão {activeCampaign.version}</p></div><button className="icon-button" title="Fechar" onClick={()=>setDetailCamp(null)}><X size={18}/></button></div><p>{activeCampaign.description}</p><div className="summary-grid"><div><small>Meta central</small><strong>{activeCampaign.goal??"Não informada"}</strong></div><div><small>Realizado consolidado</small><strong>{campaignTotal(activeCampaign).n?campaignTotal(activeCampaign).sum:"Não informado"}</strong></div><div><small>Demandas que contribuíram</small><strong>{campaignTotal(activeCampaign).n}</strong></div><div><small>Atingimento</small><strong>{percent(ratio(campaignTotal(activeCampaign).n?campaignTotal(activeCampaign).sum:null,activeCampaign.goal))}</strong></div></div><div className="linked-list">{tasks.filter(t=>t.campaignId===activeCampaign.id).map(t=><button key={t.id} onClick={()=>openTask(t)}><span><strong><UnitName units={units} id={t.unitId}/></strong><small>{t.stage}{t.blocked?" · Bloqueada":""}{t.ackVersion<activeCampaign.version?" · Leitura pendente":""}</small></span><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.campaignId===activeCampaign.id)&&<div className="empty">Sem entregas vinculadas.</div>}</div></div>}
    </>}
    {nav==="Calendário"&&<><div className="heading-row"><div><div className="eyebrow">AGENDA DE ENTREGAS</div><h1>Calendário</h1><p>Prazos de todas as demandas.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div><CalendarView tasks={tasks} year={year} month={month} setYear={setYear} setMonth={setMonth} onOpen={openTask}/></>}
-   {nav==="Unidades"&&<><div className="heading-row"><div><div className="eyebrow">DIRETÓRIO DA REDE</div><h1>Unidades</h1><p>Diretório oficial pendente de importação do PDF de novembro de 2026.</p></div><Tag tone="warning">PDF não importado</Tag></div><Notice>A fonte “Unidades 26fit - atualizado 11-26.pdf” ainda não foi disponibilizada. Os registros abaixo são fictícios para testar a interface. Nenhum CNPJ, telefone ou endereço foi inventado.</Notice><div className="directory-head"><strong>Registros em demonstração</strong><span>{units.length} locais · 82 registros oficiais aguardados</span></div><div className="directory-grid">{units.map(u=><article className="unit-tile" key={u.id}><div className="unit-icon"><Building2 size={21}/></div><div><h3>{u.name}</h3><p>{u.city} · {u.state}</p><Tag>{u.demo?"Fictícia":"Cadastrada"}</Tag></div></article>)}{units.length===0&&<div className="empty">Nenhuma unidade cadastrada. Diretório oficial ainda não importado.</div>}</div></>}
+   {nav==="Unidades"&&<>
+    <div className="heading-row">
+      <div><div className="eyebrow">DIRETÓRIO DA REDE</div><h1>Unidades 26fit</h1><p>Academias presentes no diretório público da rede.</p></div>
+      <a className="btn secondary" href="https://26fit.com.br/unidades" target="_blank" rel="noopener noreferrer"><ArrowUpRight size={16}/> Site oficial</a>
+    </div>
+    <div className="directory-summary">
+      <div><span className="directory-summary-icon"><Building2 size={22}/></span><div><strong>{publicUnitCount}</strong><small>Academias do site oficial</small></div></div>
+      <div><strong>{publicStates.length}</strong><small>Estados</small></div>
+      <div><strong>{units.filter(u=>u.source==="26fit.com.br"&&u.status==="Inauguração").length}</strong><small>Em inauguração</small></div>
+      <div><strong>{units.filter(u=>u.demo).length}</strong><small>Exemplos locais preservados</small></div>
+    </div>
+    <div className="directory-filters">
+      <label className="directory-search"><Search size={17}/><input value={directoryFilter.q} onChange={e=>setDirectoryFilter(f=>({...f,q:e.target.value}))} placeholder="Pesquisar nome, cidade ou endereço" aria-label="Pesquisar unidades"/></label>
+      <select value={directoryFilter.state} onChange={e=>setDirectoryFilter(f=>({...f,state:e.target.value}))} aria-label="Filtrar estado"><option value="">Todos os estados</option>{publicStates.map(x=><option key={x} value={x}>{x}</option>)}</select>
+      <select value={directoryFilter.region} onChange={e=>setDirectoryFilter(f=>({...f,region:e.target.value}))} aria-label="Filtrar região"><option value="">Todas as regiões</option>{publicRegions.map(x=><option key={x}>{x}</option>)}</select>
+      <select value={directoryFilter.status} onChange={e=>setDirectoryFilter(f=>({...f,status:e.target.value}))} aria-label="Filtrar situação"><option value="">Todas as situações</option><option value="Aberta">Abertas</option><option value="Inauguração">Em inauguração</option></select>
+      <select value={directoryFilter.kind} onChange={e=>setDirectoryFilter(f=>({...f,kind:e.target.value}))} aria-label="Filtrar tipo"><option value="">Todos os tipos</option>{publicTypes.map(x=><option key={x}>{x}</option>)}</select>
+      <input value={directoryFilter.coordinator} onChange={e=>setDirectoryFilter(f=>({...f,coordinator:e.target.value}))} placeholder="Coordenador" aria-label="Filtrar coordenador"/>
+      <button className="clear-filter" title="Limpar filtros" onClick={()=>setDirectoryFilter({q:"",state:"",region:"",status:"",kind:"",coordinator:""})}><X size={17}/></button>
+    </div>
+    <div className="directory-head">
+      <strong>{directoryUnits.length} registros encontrados</strong>
+      <label className="directory-show-examples"><input type="checkbox" checked={showDemoUnits} onChange={e=>setShowDemoUnits(e.target.checked)}/> Mostrar exemplos fictícios</label>
+    </div>
+    <div className="directory-grid">
+      {directoryUnits.map(u=><article className="unit-tile" key={u.id}>
+        <div className="unit-icon"><Building2 size={21}/></div>
+        <div className="unit-content">
+          <div className="unit-label"><h3>{u.name}</h3>{u.status==="Inauguração"?<Tag tone="warning">Inauguração</Tag>:u.demo?<Tag>Fictícia</Tag>:<Tag tone="success">Aberta</Tag>}</div>
+          <p>{u.city||"Cidade não informada"} {u.state?"· "+u.state:""} {u.region?"· "+u.region:""}</p>
+          {u.address&&<p className="unit-address">{u.address}</p>}
+          {u.coordinator&&<p className="unit-address">Coordenação: {u.coordinator}</p>}
+          <div className="unit-actions">
+            <Tag>{u.type||"Tipo não informado"}</Tag>
+            {u.siteUrl&&<a href={u.siteUrl} target="_blank" rel="noopener noreferrer" title={"Abrir página oficial de "+u.name}>Ver no site <ArrowUpRight size={14}/></a>}
+            <button type="button" onClick={()=>quickFilter({unit:u.id,stage:"",period:""})}>Demandas <ArrowRight size={14}/></button>
+          </div>
+        </div>
+      </article>)}
+      {!directoryUnits.length&&<div className="empty">Nenhuma unidade encontrada com esses filtros.</div>}
+    </div>
+    <Notice>Fonte: site oficial 26fit, consultado em 11/11/2026. A classificação entre unidade própria e franquia, os responsáveis, os CNPJs e os contatos internos exigem o diretório administrativo; não foram presumidos. Os registros são mantidos no navegador até a integração do banco compartilhado.</Notice>
+   </>}
    {nav==="Acervo"&&<><div className="heading-row"><div><div className="eyebrow">CONHECIMENTO DA REDE</div><h1>Acervo de aprendizados</h1><p>Registre, consulte e reaproveite o que funcionou.</p></div><BookOpen size={30} color="#8b949d"/></div><div className="panel"><div className="section-title"><h3>Demandas concluídas</h3><Tag>{tasks.filter(t=>t.stage==="Concluído").length} registros</Tag></div>{tasks.filter(t=>t.stage==="Concluído").map(t=><button key={t.id} className="learning-card" onClick={()=>openTask(t)}><div><h4>{t.title}</h4><p>{t.learning?.worked}</p><Tag tone="success">{t.learning?.decision||"Concluído"}</Tag></div><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.stage==="Concluído")&&<div className="empty">Quando uma demanda for concluída com aprendizados, ela aparecerá aqui.</div>}</div></>}
    {nav==="Equipe"&&<><div className="heading-row"><div><div className="eyebrow">PESSOAS E PERMISSÕES</div><h1>Equipe</h1><p>Perfis individuais e unidades atribuídas.</p></div><Tag tone="warning">Em preparação</Tag></div><div className="panel empty-feature"><LockKeyhole size={34}/><h3>Convites de equipe estarão disponíveis após a autenticação</h3><p>O cadastro interno será separado do compartilhamento do site. Perfis previstos: Administrador, Gestor comercial, Líder de unidade e Colaborador. Não há permissões simuladas nesta versão.</p></div></>}
    {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Controle dos dados fictícios desta versão.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>O armazenamento atual é exclusivo do navegador (localStorage), não compartilhado. Não insira dados comerciais, pessoais ou sensíveis antes da ativação da segurança e do banco.</Notice><div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup local</h3><p>Exportação e mesclagem de dados demonstrativos</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label></div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
