@@ -988,3 +988,41 @@
  .cc-date-calendar-input>input{font-size:16px}
  .cc-date-calendar-trigger{right:5px}
 }
+
+
+/* Administração de e-mails transacionais da Central Comercial */
+.cc-email-settings{margin:0 0 18px;padding:20px 22px}
+.cc-email-settings .section-title{margin-bottom:15px}
+.cc-email-status-list{border:1px solid #e7ecef;border-radius:10px;overflow:hidden;background:#fff}
+.cc-email-status-list>p{padding:18px;color:#83919c;font-size:12px}
+.cc-email-status-row{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid #edf0f2}
+.cc-email-status-row:last-child{border-bottom:0}
+.cc-email-status-row>span:nth-child(2){flex:1;min-width:0}
+.cc-email-status-row strong{font-size:12px;font-weight:750;color:#34424c;display:block}
+.cc-email-status-row small{display:block;margin-top:5px;color:#939fa8;font-size:10px;overflow-wrap:anywhere}
+.cc-email-status-row>b{border-radius:6px;padding:5px 8px;font-size:10px;font-weight:760;white-space:nowrap}
+.cc-email-ok{color:#258765}
+.cc-email-pending{color:#c2874c}
+.cc-email-ready{background:#edf8f1;color:#28815d}
+.cc-email-awaiting{background:#fff4e9;color:#a87447}
+.cc-email-help{margin:14px 0;display:flex;align-items:flex-start;gap:11px;background:#f8fafb;
+ border:1px solid #e7ecef;border-radius:9px;padding:15px;color:#73828e}
+.cc-email-help>svg{color:#bd854f;flex:none;margin-top:2px}
+.cc-email-help strong{font-weight:780;color:#45535e;font-size:11px}
+.cc-email-help p{font-size:11px;line-height:1.75;margin:7px 0 0}
+.cc-email-help p strong{color:inherit}
+.cc-email-message{display:flex;align-items:flex-start;gap:9px;margin:12px 0;padding:12px 14px;
+ border-radius:8px;font-size:11px;line-height:1.7}
+.cc-email-message svg{flex:none;margin-top:1px}
+.cc-email-message.success{background:#eef9f2;color:#287f5d;border:1px solid #d0ead9}
+.cc-email-message.error{background:#fff5ed;color:#9b6547;border:1px solid #ecd6c6}
+.cc-email-buttons{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.cc-email-buttons .btn{display:inline-flex;gap:8px;align-items:center}
+.cc-email-provider-link{font-size:11px;color:#865f44;display:inline-flex;align-items:center;gap:5px;padding:9px}
+.cc-email-provider-link:hover{text-decoration:underline}
+.cc-email-footnote{margin:12px 0 0;font-size:10px;line-height:1.75;color:#939faa}
+@media(max-width:620px){
+ .cc-email-settings{padding:15px}
+ .cc-email-buttons .btn{width:100%;justify-content:center}
+ .cc-email-provider-link{justify-content:center;width:100%}
+}
