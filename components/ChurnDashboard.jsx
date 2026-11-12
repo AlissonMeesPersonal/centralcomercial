@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useMemo,useRef,useState} from "react";
+import NetworkChurnImport from "./NetworkChurnImport";
 import {
  Activity,ArrowDownRight,ArrowUpRight,BarChart3,Building2,CalendarDays,CheckCircle2,
  ChevronDown,CloudUpload,Download,FileSpreadsheet,Filter,Info,RefreshCcw,
@@ -193,8 +194,9 @@ export default function ChurnDashboard({units=[],accessRole}){
 
   <div className="churn-formula"><Info size={18}/><span><strong>Churn mensal 26fit</strong> = total de saídas (cancelados + vencidos + desistências + suspensos) ÷ alunos ativos no início do mês × 100. No consolidado da rede usamos os totais oficiais do relatório e, nos filtros, a soma ponderada das unidades identificadas. Base inicial zero aparece como Não informado.</span></div>
 
+  {canImport&&showImporter&&<NetworkChurnImport onSuccess={importedYear=>{if(importedYear&&importedYear!==year){setMonth("latest");setYear(importedYear);}else{setMonth("latest");reload(year);}}}/>}
   {canImport&&showImporter&&<section className="panel churn-import-panel">
-   <div className="section-title"><div><h3>Importar dados por unidade</h3><p>Arquivo CSV ou Excel (.xlsx), até 5 MB e 2.000 registros por lote.</p></div><FileSpreadsheet size={20} color="#77828b"/></div>
+   <div className="section-title"><div><h3>Lançamento avulso (formato simplificado)</h3><p>CSV ou XLSX por unidade, com cancelamentos isolados. Para reproduzir o relatório oficial da rede, utilize o importador acima.</p></div><FileSpreadsheet size={20} color="#77828b"/></div>
    <div className="churn-import-top">
     <button className="btn secondary" onClick={downloadModel}><Download size={15}/> Baixar modelo CSV das unidades</button>
     <label className="field churn-import-period"><span>Competência padrão</span><input type="month" value={filePeriod} onChange={e=>{setFilePeriod(e.target.value);setPreview(null);setImportError("");}}/></label>
@@ -321,10 +323,15 @@ export default function ChurnDashboard({units=[],accessRole}){
 
   {canImport&&<section className="panel churn-history">
    <div className="section-title"><div><h3>Histórico de importações</h3><p>Autoria e alterações registradas no banco de dados.</p></div><Clock3 size={18} color="#8b969e"/></div>
-   {result.batches.length?result.batches.map(b=><div className="churn-history-row" key={b.id}>
+   {(result.sourceImports||[]).map(record=><div className="churn-history-row" key={record.source_hash}>
+    <span className="churn-history-file"><FileSpreadsheet size={17}/><span><strong>{record.file_name}</strong><small>{dayLabel(record.created_at)} · {record.imported_by}</small></span></span>
+    <span><b>{fmtCount(record.source_rows)}</b> registros · {record.months} competência(s) · relatório da rede</span>
+   </div>)}
+   {result.batches.map(b=><div className="churn-history-row" key={b.id}>
     <span className="churn-history-file"><FileSpreadsheet size={17}/><span><strong>{b.filename}</strong><small>{dayLabel(b.created_at)} · {b.imported_by}</small></span></span>
     <span><b>{b.rows_total}</b> registros · {b.rows_inserted} novos · {b.rows_updated} atualizados</span>
-   </div>):<p className="team-secondary">Nenhuma importação realizada até agora.</p>}
+   </div>)}
+   {!result.batches.length&&!result.sourceImports.length&&<p className="team-secondary">Nenhuma importação realizada até agora.</p>}
   </section>}
   <p className="churn-footnote"><Info size={14}/> Faixas de cor (até 3%, de 3% a 5%, acima de 5%) são referências visuais, não metas oficiais da 26fit. A base inicial, os componentes de saídas e as competências devem seguir o mesmo critério em todas as unidades.</p>
  </section>;
