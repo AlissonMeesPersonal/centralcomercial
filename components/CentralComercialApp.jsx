@@ -140,28 +140,104 @@ export default function Home({accessRole}) {
  const upcoming=tasks.filter(t=>t.stage!=="Concluído"&&t.due>=day()&&t.due<=day(7)).length;
  function openTask(t){setError("");setEditing(JSON.parse(JSON.stringify(t)));setDrawer("task");}
  function newTask(){openTask(task());}
- function changeStage(id,stage){const t=tasks.find(t=>t.id===id);if(!t)return;if(stage==="Concluído"){openTask({...t,stage});return;}setTasks(a=>a.map(x=>x.id===id?{...x,stage,updatedAt:new Date().toISOString(),history:[...(x.history||[]),{at:new Date().toISOString(),action:"Etapa alterada para "+stage,by:"Sessão de demonstração"}]}:x));notify("Etapa atualizada neste navegador.");}
- function saveTask(){
+
+ async function recordActivity({module,action,entityId,title,details="",unitId=null}){
+  if(!globalThis.crypto?.randomUUID)throw Error("Seu navegador não suporta o registro seguro de ações.");
+  const response=await fetch("/api/history",{
+   method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({eventId:globalThis.crypto.randomUUID(),module,action,entityId,title,details,unitId})
+  });
+  let body={};try{body=await response.json();}catch{}
+  if(!response.ok)throw Error(body.error||"O Histórico está indisponível. A alteração não foi salva.");
+  return body;
+ }
+ async function changeStage(id,stage){
+  const current=tasks.find(t=>t.id===id);if(!current)return;
+  if(current.archived){notify("Restaure a demanda antes de alterar sua etapa.");return;}
+  if(stage==="Concluído"){openTask({...current,stage});return;}
+  try{
+   await recordActivity({module:"demanda",action:"stage_changed",entityId:current.id,
+    title:current.title||"Demanda",details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId});
+   setTasks(list=>list.map(t=>t.id===id?{...t,stage,updatedAt:new Date().toISOString(),
+    history:[...(t.history||[]),{at:new Date().toISOString(),action:"Etapa alterada para "+stage,by:"Usuário autenticado"}]}:t));
+   notify("Etapa alterada e registrada no Histórico.");
+  }catch(err){notify(err.message||"Não foi possível registrar a etapa.");}
+ }
+ async function saveTask(){
   if(!editing?.title?.trim()){setError("Informe o título da demanda.");return;}
+  if(editing.archived){setError("Restaure a demanda antes de editá-la.");return;}
   if(editing.blocked&&!editing.blockReason?.trim()){setError("Informe o motivo do bloqueio.");return;}
-  if(editing.stage==="Concluído"){if(!editing.learning?.worked?.trim()||!editing.learning?.challenges?.trim()||!editing.learning?.decision){setError("Para concluir, registre aprendizados e recomendação.");return;}
-   if(editing.checklist.some(c=>c.required&&!c.done)&&!editing.learning.pendingReason?.trim()){setError("Justifique as atividades obrigatórias pendentes.");return;}}
+  if(editing.stage==="Concluído"){
+   if(!editing.learning?.worked?.trim()||!editing.learning?.challenges?.trim()||!editing.learning?.decision){
+    setError("Para concluir, registre aprendizados e recomendação.");return;
+   }
+   if(editing.checklist.some(c=>c.required&&!c.done)&&!editing.learning.pendingReason?.trim()){
+    setError("Justifique as atividades obrigatórias pendentes.");return;
+   }
+  }
   const exists=tasks.some(t=>t.id===editing.id);
-  const updated={...editing,updatedAt:new Date().toISOString(),history:[...(editing.history||[]),{at:new Date().toISOString(),action:exists?"Demanda editada":"Demanda criada",by:"Sessão de demonstração"}]};
-  setTasks(list=>exists?list.map(t=>t.id===editing.id?updated:t):[updated,...list]);setDrawer(null);setError("");notify("Demanda salva localmente.");
+  const updated={...editing,updatedAt:new Date().toISOString(),
+   history:[...(editing.history||[]),{at:new Date().toISOString(),
+    action:exists?"Demanda editada":"Demanda criada",by:"Usuário autenticado"}]};
+  try{
+   await recordActivity({module:"demanda",
+    action:editing.stage==="Concluído"?"completed":exists?"updated":"created",
+    entityId:updated.id,title:updated.title,
+    details:"Etapa: "+updated.stage+(updated.category?" • "+updated.category:""),
+    unitId:updated.unitId});
+   setTasks(list=>exists?list.map(t=>t.id===editing.id?updated:t):[updated,...list]);
+   setDrawer(null);setError("");notify("Demanda salva e registrada no Histórico.");
+  }catch(err){setError(err.message||"Falha ao registrar a demanda.");}
+ }
+ async function toggleTaskArchived(){
+  if(!editing||!tasks.some(t=>t.id===editing.id))return;
+  const next=!editing.archived;
+  if(next&&!window.confirm("Arquivar esta demanda? Ela continuará disponível para consulta e restauração."))return;
+  const updated={...editing,archived:next,updatedAt:new Date().toISOString()};
+  try{
+   await recordActivity({module:"demanda",action:next?"archived":"restored",entityId:updated.id,
+    title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId});
+   setTasks(list=>list.map(t=>t.id===updated.id?updated:t));
+   setEditing(updated);setDrawer(null);setError("");
+   notify(next?"Demanda arquivada.":"Demanda restaurada.");
+  }catch(err){setError(err.message||"Falha ao atualizar a demanda.");}
  }
  function newCampaign(){setError("");setCampaignDraft({id:uid(),title:"",description:"",indicator:"Matrículas",goal:null,version:1,units:[],archived:false,demo:false,createdAt:new Date().toISOString()});setDrawer("campaign");}
  function editCampaign(c){setError("");setCampaignDraft(JSON.parse(JSON.stringify(c)));setDrawer("campaign");}
- function saveCampaign(){
+
+ async function saveCampaign(){
   if(!campaignDraft?.title?.trim()){setError("Informe o título da campanha.");return;}
+  if(campaignDraft.archived){setError("Restaure a campanha antes de editá-la.");return;}
   const old=campaigns.find(c=>c.id===campaignDraft.id);
   const changed=old&&old.description!==campaignDraft.description;
   const merged={...campaignDraft,version:changed?(old.version+1):campaignDraft.version};
-  setCampaigns(a=>old?a.map(c=>c.id===merged.id?merged:c):[merged,...a]);
   const existing=new Set(tasks.filter(t=>t.campaignId===merged.id).map(t=>t.unitId));
-  const newItems=(merged.units||[]).filter(u=>!existing.has(u)).map(u=>task({title:merged.title,objective:merged.description,unitId:u,campaignId:merged.id,category:"Campanha geral",stage:"Planejamento",indicator:merged.indicator,goal:null,ackVersion:0}));
-  if(newItems.length)setTasks(a=>[...newItems,...a]);
-  setDrawer(null);setError("");notify(changed?"Versão central atualizada; leitura pendente nas entregas.":"Campanha salva com "+newItems.length+" entrega(s) nova(s).");
+  const newItems=(merged.units||[]).filter(u=>!existing.has(u)).map(u=>task({
+   title:merged.title,objective:merged.description,unitId:u,campaignId:merged.id,
+   category:"Campanha geral",stage:"Planejamento",indicator:merged.indicator,goal:null,ackVersion:0
+  }));
+  try{
+   await recordActivity({module:"campanha",action:old?"updated":"created",
+    entityId:merged.id,title:merged.title,
+    details:(merged.units||[]).length+" unidade(s) • "+newItems.length+" nova(s) entrega(s) • versão "+merged.version});
+   setCampaigns(list=>old?list.map(c=>c.id===merged.id?merged:c):[merged,...list]);
+   if(newItems.length)setTasks(list=>[...newItems,...list]);
+   setDrawer(null);setError("");
+   notify(changed?"Versão central atualizada; leitura pendente nas entregas.":"Campanha salva no Histórico.");
+  }catch(err){setError(err.message||"Falha ao registrar a campanha.");}
+ }
+ async function toggleCampaignArchived(){
+  if(!campaignDraft||!campaigns.some(c=>c.id===campaignDraft.id))return;
+  const next=!campaignDraft.archived;
+  if(next&&!window.confirm("Arquivar esta campanha? Suas entregas e seu histórico serão preservados."))return;
+  const updated={...campaignDraft,archived:next,updatedAt:new Date().toISOString()};
+  try{
+   await recordActivity({module:"campanha",action:next?"archived":"restored",
+    entityId:updated.id,title:updated.title||"Campanha",details:next?"Campanha arquivada":"Campanha restaurada"});
+   setCampaigns(list=>list.map(c=>c.id===updated.id?updated:c));
+   setCampaignDraft(updated);setDrawer(null);setError("");
+   notify(next?"Campanha arquivada.":"Campanha restaurada.");
+  }catch(err){setError(err.message||"Falha ao arquivar campanha.");}
  }
  function confirmRead(t){const c=campaigns.find(c=>c.id===t.campaignId);if(!c)return;setEditing(e=>({...e,ackVersion:c.version}));notify("Confirmação será gravada ao salvar a demanda.");}
  function exportData(){
