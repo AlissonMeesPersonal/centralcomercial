@@ -114,7 +114,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    });
    const body=await response.json();
    if(!response.ok)throw Error(body.error||"Não foi possível salvar o evento.");
-   setDraft(null);setSelectedDay(null);setTick(n=>n+1);
+   setDraft(null);setSelectedDay(null);setTick(n=>n+1);window.dispatchEvent(new Event("26fit:calendar-updated"));
   }catch(e){setFormError(e.message||"Não foi possível salvar.");}
   finally{setSaving(false);}
  }
