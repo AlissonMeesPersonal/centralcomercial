@@ -25,7 +25,7 @@ export async function GET(request){
    [year,month,managed,access.email]
   );
   const members=await sql.query("SELECT name,email,role FROM cc_team_members WHERE status='active' ORDER BY name LIMIT 1000");
-  return respond({events,members,canManageNetwork:managed,currentEmail:access.email,timezone:"America/Sao_Paulo"});
+  return respond({events,members,canManageNetwork:managed,currentEmail:access.email,timezone:"America/Sao_Paulo",emailReady:Boolean(process.env.RESEND_API_KEY&&process.env.AUTH_EMAIL_FROM&&process.env.CRON_SECRET)});
  }catch{return error("Não foi possível consultar a agenda.",503);}
 }
 export async function POST(request){
