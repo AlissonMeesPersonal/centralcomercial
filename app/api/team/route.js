@@ -16,7 +16,7 @@ export async function GET(){
   const {access,error}=await authorise();if(error)return error;
   const sql=database();
   const members=await sql.query(
-   "SELECT m.email,m.name,m.role,m.status,m.unit_revision,m.created_at FROM cc_team_members m WHERE NOT EXISTS (SELECT 1 FROM cc_hidden_developers h WHERE lower(h.email)=lower(m.email)) ORDER BY m.created_at DESC"
+   "SELECT m.email,m.name,m.role,m.status,m.unit_revision,m.role_revision,m.created_at FROM cc_team_members m WHERE NOT EXISTS (SELECT 1 FROM cc_hidden_developers h WHERE lower(h.email)=lower(m.email)) ORDER BY m.created_at DESC"
   );
   const invitations=await sql.query(
    "SELECT email,name,role,unit_ids,invited_by,created_at,expires_at FROM cc_team_invitations i WHERE i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() AND NOT EXISTS (SELECT 1 FROM cc_hidden_developers h WHERE lower(h.email)=lower(i.email)) ORDER BY created_at DESC"
@@ -28,6 +28,8 @@ export async function GET(){
 }
 export async function POST(request) {
  try{
+  const origin=request.headers.get("origin");
+  if(origin&&origin!==new URL(request.url).origin)return fail("Origem não autorizada.",403);
   const {access,error}=await authorise();if(error)return error;
   if(Number(request.headers.get("content-length")||0)>5000)return fail("Dados excedem o limite.",413);
   let data;try{data=await request.json();}catch{return fail("Solicitação inválida.",400);}
@@ -62,16 +64,41 @@ export async function POST(request) {
 }
 export async function PATCH(request){
  try{
+  const origin=request.headers.get("origin");
+  if(origin&&origin!==new URL(request.url).origin)return fail("Origem não autorizada.",403);
   const {access,error}=await authorise();if(error)return error;
   let body;try{body=await request.json();}catch{return fail("Solicitação inválida.",400);}
   const email=normalizeEmail(body.email),status=body.status;
-  if(body.action!=="assign_units"&&!["active","suspended"].includes(status))return fail("Situação inválida.",422);
+  if(!["assign_units","set_role"].includes(body.action)&&!["active","suspended"].includes(status))return fail("Situação inválida.",422);
   if(email===access.email)return fail("Você não pode suspender o próprio acesso.",403);
   const sql=database();
   if((await sql.query("SELECT 1 FROM cc_hidden_developers WHERE lower(email)=$1",[email])).length)return fail("Conta indisponível para alterações.",403);
-  const target=await sql.query("SELECT role,status FROM cc_team_members WHERE lower(email)=$1 LIMIT 1",[email]);
+  const target=await sql.query("SELECT role,status,role_revision FROM cc_team_members WHERE lower(email)=$1 LIMIT 1",[email]);
   if(!target.length)return fail("Colaborador não encontrado.",404);
   if(!canInviteRole(access.role,target[0].role))return fail("Você não pode alterar este perfil.",403);
+  if(body.action==="set_role"){
+   const newRole=String(body.role||"").trim();
+   const revision=body.roleRevision;
+   const unitIds=Array.isArray(body.unitIds)?[...new Set(body.unitIds)]:null;
+   if(!canInviteRole(access.role,newRole))return fail("Você não pode atribuir esse cargo.",403);
+   if(!Number.isSafeInteger(revision)||revision<0)return fail("Revisão do cargo inválida.",422);
+   if(!unitIds||unitIds.length>200||unitIds.some(id=>typeof id!=="string"||!/^[-a-zA-Z0-9]{6,180}$/.test(id)))
+     return fail("Unidades selecionadas inválidas.",422);
+   if(["lider","colaborador"].includes(newRole)&&unitIds.length===0)
+     return fail("Vincule ao menos uma unidade para líder ou colaborador.",422);
+   if(unitIds.length){
+    const found=await sql.query("SELECT id FROM cc_unit_seed WHERE id=ANY($1::text[]) UNION SELECT id FROM cc_unit_records WHERE id=ANY($1::text[])",[unitIds]);
+    if(found.length!==unitIds.length)return fail("Uma das unidades selecionadas não existe.",422);
+   }
+   const change=await sql.query("SELECT cc_change_team_role($1,$2,$3,$4,$5::text[])::integer AS revision",
+     [email,access.email,revision,newRole,unitIds]);
+   const next=Number(change[0]?.revision);
+   if(next===-1)return fail("O cargo foi alterado em outra sessão. Atualize a equipe antes de salvar.",409);
+   if(next===-2)return fail("Para este cargo, informe pelo menos uma unidade.",422);
+   if(next===-3)return fail("Colaborador não encontrado.",404);
+   if(!Number.isSafeInteger(next)||next<0)return fail("Não foi possível salvar a alteração.",500);
+   return Response.json({email,role:newRole,unit_ids:unitIds,role_revision:next,message:"Cargo atualizado com histórico de alterações."},{headers});
+  }
   if(body.action==="assign_units"){
    const unitIds=Array.isArray(body.unitIds)?[...new Set(body.unitIds)]:null;
    const revision=body.unitRevision;
