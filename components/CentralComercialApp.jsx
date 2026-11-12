@@ -10,7 +10,7 @@ import CalendarWorkspace from "./CalendarWorkspace";
 import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard, ClipboardList, Megaphone, CalendarDays, Building2,
   BookOpen, History, Archive, UsersRound, Settings2, Search, Plus, Bell, ArrowUpRight,
@@ -83,6 +83,11 @@ function TaskCard({item,units,onOpen,compact=false,drag=true}) {
 }
 export default function Home({accessRole}) {
  const [ready,setReady]=useState(false),[units,setUnits]=useState([]),[campaigns,setCampaigns]=useState([]),[tasks,setTasks]=useState([]);
+ // Refs preservam a etapa mais recente durante movimentações rápidas,
+ // sem esperar a renderização ou a resposta de chamadas externas.
+ const tasksRef=useRef(tasks);
+ tasksRef.current=tasks;
+ const stageWritesRef=useRef(new Map());
  const [nav,setNav]=useState("Visão geral"),[view,setView]=useState("Kanban"),[filter,setFilter]=useState({q:"",unit:"",priority:"",stage:"",campaign:"",category:"",owner:"",period:""});
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
@@ -164,18 +169,62 @@ export default function Home({accessRole}) {
   return body;
  }
  async function changeStage(id,stage){
-  const current=tasks.find(t=>t.id===id);if(!current)return;
+  const current=tasksRef.current.find(t=>t.id===id);
+  if(!current||current.stage===stage)return;
   if(current.archived){notify("Restaure a demanda antes de alterar sua etapa.");return;}
+  // A conclusão ainda precisa validar a checklist e os aprendizados.
   if(stage==="Concluído"){openTask({...current,stage});return;}
+
+  const transitionId=uid();
+  const updatedAt=new Date().toISOString();
+  const historyEntry={
+   id:transitionId,at:updatedAt,
+   action:"Etapa alterada para "+stage,by:"Usuário autenticado"
+  };
+  const optimistic={...current,stage,updatedAt,history:[...(current.history||[]),historyEntry]};
+
+  // PRIMEIRO: atualiza a coluna visivelmente, na mesma interação de drop.
+  // O Histórico é gravado depois. O calendário não precisa de sincronização:
+  // nas mudanças entre etapas abertas o título, prazo e status do evento
+  // permanecem iguais; concluir/arquivar já passam pelos fluxos próprios.
+  const updatedList=tasksRef.current.map(t=>t.id===id?optimistic:t);
+  tasksRef.current=updatedList;
+  setTasks(updatedList);
+
+  // Requisições do mesmo cartão ficam em ordem, mas NÃO bloqueiam novos
+  // arrastos: cada movimento tem resposta visual imediata.
+  const previousWrite=stageWritesRef.current.get(id)||Promise.resolve();
+  const write=previousWrite.catch(()=>{}).then(()=>recordActivity({
+   module:"demanda",action:"stage_changed",entityId:current.id,
+   title:current.title||"Demanda",
+   details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId
+  }));
+  stageWritesRef.current.set(id,write);
   try{
-   const synced=await syncTaskDeadline({...current,stage});
-   await recordActivity({module:"demanda",action:"stage_changed",entityId:current.id,
-    title:current.title||"Demanda",details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId});
-   setTasks(list=>list.map(t=>t.id===id?{...synced,updatedAt:new Date().toISOString(),
-    history:[...(t.history||[]),{at:new Date().toISOString(),action:"Etapa alterada para "+stage,by:"Usuário autenticado"}]}:t));
-   window.dispatchEvent(new Event("26fit:calendar-updated"));
-   notify("Etapa alterada e registrada no Histórico.");
-  }catch(err){notify(err.message||"Não foi possível registrar a etapa.");}
+   await write;
+   if(stageWritesRef.current.get(id)===write)notify("Etapa atualizada e registrada no Histórico.");
+  }catch(err){
+   const latest=tasksRef.current.find(t=>t.id===id);
+   if(latest){
+    const isCurrent=latest.history?.some(h=>h.id===transitionId);
+    if(isCurrent){
+     const newest=latest.history?.at(-1)?.id===transitionId;
+     const reverted=tasksRef.current.map(t=>{
+      if(t.id!==id)return t;
+      return {
+       ...t,
+       ...(newest&&t.stage===stage?{stage:current.stage,updatedAt:current.updatedAt}:{}),
+       history:(t.history||[]).filter(h=>h.id!==transitionId)
+      };
+     });
+     tasksRef.current=reverted;
+     setTasks(reverted);
+    }
+   }
+   notify("Falha ao registrar no Histórico. A mudança não confirmada foi revertida quando possível: "+(err.message||"verifique a conexão."));
+  }finally{
+   if(stageWritesRef.current.get(id)===write)stageWritesRef.current.delete(id);
+  }
  }
  async function syncTaskDeadline(item){
   if(item.demo||!item.due)return item;
