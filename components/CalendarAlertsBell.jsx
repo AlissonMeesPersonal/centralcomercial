@@ -5,7 +5,8 @@ const today=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Pau
 const hour=e=>new Date(e).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
 const date=e=>new Date(e).toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
 export default function CalendarAlertsBell({tasks=[],pending=0,onCalendar,onApprovals}){
- const [open,setOpen]=useState(false),[events,setEvents]=useState([]);
+ const [open,setOpen]=useState(false),[events,setEvents]=useState([]),[refreshTick,setRefreshTick]=useState(0);
+ useEffect(()=>{const update=()=>setRefreshTick(x=>x+1);window.addEventListener("26fit:calendar-updated",update);return ()=>window.removeEventListener("26fit:calendar-updated",update);},[]);
  useEffect(()=>{
   const controller=new AbortController();
   const base=new Date(),months=[base,new Date(base.getFullYear(),base.getMonth()+1,1)];
@@ -14,7 +15,7 @@ export default function CalendarAlertsBell({tasks=[],pending=0,onCalendar,onAppr
    .then(all=>{if(!controller.signal.aborted)setEvents(all.flatMap(x=>x?.events||[]));})
    .catch(()=>{});
   return ()=>controller.abort();
- },[]);
+ },[refreshTick]);
  const soon=useMemo(()=>{
   const start=today(),limit=new Date(Date.now()+7*86400000).toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
   const eventIds=new Set(events.filter(e=>e.external_task_id).map(e=>e.external_task_id));
