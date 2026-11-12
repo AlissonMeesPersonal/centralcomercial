@@ -11,7 +11,10 @@
     "next": "^16.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "lucide-react": "^0.468.0",
+    "@neondatabase/auth": "0.7.0-beta",
+    "@neondatabase/auth-ui": "0.4.0-beta",
+    "@neondatabase/serverless": "1.2.0"
   },
   "engines": {
     "node": ">=20.9.0"

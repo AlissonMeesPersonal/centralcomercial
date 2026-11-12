@@ -1,26 +1,15 @@
-// Dados internos da rede: apenas no ambiente de produção protegido por autenticação Vercel.
-// O repositório público nunca contém contatos de colaboradores. Não cachear esta resposta.
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-export async function GET() {
- const headers = {
-  "Cache-Control": "private, no-store, max-age=0",
-  "Vary": "Cookie",
-  "X-Content-Type-Options": "nosniff"
- };
- if (process.env.VERCEL_ENV !== "production") {
-  return Response.json({ error: "Diretório interno indisponível fora da produção protegida." }, { status: 403, headers });
- }
- const raw = process.env.CENTRAL_INTERNAL_DIRECTORY_JSON;
- if (!raw) return Response.json({ error: "Cadastro administrativo não configurado." }, { status: 503, headers });
- try {
-  const payload = JSON.parse(raw);
-  if (!Array.isArray(payload.units) || payload.units.length !== 83)
-   throw new Error("Arquivo administrativo incompleto");
-  return Response.json({ units: payload.units, total: payload.total }, { status: 200, headers });
- } catch {
-  return Response.json({ error: "Cadastro interno inválido." }, { status: 500, headers });
- }
+import { database } from "../../../lib/unit-db";
+export const runtime="nodejs";export const dynamic="force-dynamic";export const revalidate=0;
+const headers={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+export async function GET(){
+ if(process.env.VERCEL_ENV!=="production")
+   return Response.json({error:"Diretório indisponível fora de produção"},{status:403,headers});
+ try{
+  const original=JSON.parse(process.env.CENTRAL_INTERNAL_DIRECTORY_JSON||"{}");
+  if(!Array.isArray(original.units)||original.units.length!==83)throw Error("Fonte incompleta");
+  const rows=await database().query("SELECT id,payload,revision,updated_at FROM cc_unit_records ORDER BY created_at");
+  const map=new Map(original.units.map(unit=>[unit.id,{...unit,revision:0}]));
+  for(const row of rows){map.set(row.id,{...(map.get(row.id)||{}),...row.payload,revision:row.revision,updatedAt:row.updated_at});}
+  return Response.json({units:[...map.values()],total:map.size,shared:true},{headers});
+ }catch{return Response.json({error:"Banco de unidades indisponível"},{status:503,headers});}
 }
