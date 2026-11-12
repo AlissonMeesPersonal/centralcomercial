@@ -248,10 +248,22 @@ export default function Home({accessRole}) {
  async function importData(file){
   if(!file)return;try{const data=JSON.parse(await file.text());if(data.schema!=="26fit.central.demo.v1"||!Array.isArray(data.units)||!Array.isArray(data.campaigns)||!Array.isArray(data.tasks))throw Error("Formato não reconhecido.");
    const merge=(a,b)=>{const m=new Map(a.map(x=>[x.id,x]));for(const x of b){if(!x||typeof x.id!=="string")continue;const previous=m.get(x.id);if(!previous||String(x.updatedAt||"")>String(previous.updatedAt||""))m.set(x.id,x);}return [...m.values()];};
-   setUnits(a=>merge(a,data.units));setCampaigns(a=>merge(a,data.campaigns));setTasks(a=>merge(a,data.tasks));notify("Backup mesclado localmente.");}
+   await recordActivity({module:"configuracoes",action:"backup_imported",entityId:"backup-"+uid(),
+    title:"Backup local importado",details:data.tasks.length+" demandas e "+data.campaigns.length+" campanhas na mesclagem"});
+   setUnits(a=>merge(a,data.units));setCampaigns(a=>merge(a,data.campaigns));setTasks(a=>merge(a,data.tasks));notify("Backup mesclado e registrado no Histórico.");}
   catch(err){notify("Falha na importação: "+err.message);}
  }
- function clearDemo(){if(!window.confirm("Remover registros de demonstração? Os registros criados por você serão preservados neste navegador."))return;setTasks(a=>a.filter(t=>!t.demo));setCampaigns(a=>a.filter(c=>!c.demo));setUnits(a=>a.filter(u=>!u.demo));notify("Exemplos removidos.");}
+ async function clearDemo(){
+  if(!window.confirm("Remover registros de demonstração? Os demais registros deste navegador serão preservados."))return;
+  const count=tasks.filter(t=>t.demo).length+campaigns.filter(c=>c.demo).length+units.filter(u=>u.demo).length;
+  if(!count){notify("Não há registros fictícios para remover.");return;}
+  try{
+   await recordActivity({module:"configuracoes",action:"demo_removed",entityId:"demos-"+uid(),
+    title:"Registros demonstrativos arquivados",details:count+" registro(s) fictício(s) removido(s) do navegador"});
+   setTasks(list=>list.filter(t=>!t.demo));setCampaigns(list=>list.filter(c=>!c.demo));
+   setUnits(list=>list.filter(u=>!u.demo));notify("Registros fictícios removidos e registrados no Histórico.");
+  }catch(err){notify(err.message||"Falha ao registrar a limpeza.");}
+ }
  function quickFilter(f){setFilter(a=>({...a,...f}));moveNav("Demandas");setView("Lista");}
  const activeCampaign=campaigns.find(c=>c.id===detailCamp);
  function campaignTotal(c){const list=tasks.filter(t=>t.campaignId===c.id&&t.indicator===c.indicator&&t.actual!==null&&t.actual!==""&&t.actual!==undefined);return {n:list.length,sum:list.reduce((n,t)=>n+Number(t.actual),0)};}
