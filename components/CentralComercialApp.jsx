@@ -7,6 +7,7 @@ import LearningArchive from "./LearningArchive";
 import HistoryDashboard from "./HistoryDashboard";
 import CalendarWorkspace from "./CalendarWorkspace";
 import TeamAttendeePicker from "./TeamAttendeePicker";
+import CalendarAlertsBell from "./CalendarAlertsBell";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -298,7 +299,7 @@ export default function Home({accessRole}) {
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
   <div className="workspace">
-   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong></div><div className="top-actions"><button title="Pendências" className="icon-button" onClick={()=>quickFilter({stage:"Aguardando aprovação"})}><Bell size={18}/>{pending>0&&<i/>}</button><div className="avatar small">D</div></div></header>
+   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><div className="avatar small">D</div></div></header>
    <main className="main">
    {nav==="Visão geral"&&<>
     <div className="heading-row"><div><div className="eyebrow">PAINEL DE CONTROLE <span className="dot">·</span> {new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"})}</div><h1>Visão geral</h1><p>Organize a estratégia da rede e acompanhe a execução de cada unidade.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div>
