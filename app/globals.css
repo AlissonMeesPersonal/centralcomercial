@@ -763,3 +763,55 @@
 .cc-alert-seeall{border:0;background:#f8fafb;color:#ad713e;width:100%;padding:13px;
  font-size:11px;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:730}
 .cc-alert-seeall:hover{background:#fff5ed}
+
+
+/* Relatórios mensais 26fit — visão oficial por saídas totais */
+.churn-source-overview{margin:16px 0;padding:19px 22px}
+.churn-breakdown{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:15px 0}
+.churn-breakdown>div{padding:15px 12px;background:#f8fafb;border:1px solid #edf0f2;border-radius:9px;min-width:0}
+.churn-breakdown small{display:block;font-size:10px;color:#8b97a1;margin-bottom:9px;line-height:1.5}
+.churn-breakdown strong{font-size:20px;font-weight:790;letter-spacing:-.5px;color:#35434d}
+.churn-source-caption{font-size:11px;color:#83909b;line-height:1.8;margin:0}
+.churn-source-caption strong{color:#657580}
+.churn-source-warning{display:flex;align-items:flex-start;gap:9px;padding:12px 14px;border:1px solid #f0dfb9;border-radius:8px;background:#fffaf0;color:#967b45;font-size:11px;line-height:1.7;margin-top:14px}
+.churn-source-warning svg{flex:none;margin-top:1px}
+.churn-pending-matches{margin:14px 0;background:#fff;border:1px solid #e3e9ed;border-radius:11px;overflow:hidden}
+.churn-pending-matches>summary{display:flex;align-items:center;gap:10px;cursor:pointer;padding:15px 18px;color:#71654d;font-weight:730;font-size:12px}
+.churn-pending-matches summary svg:last-child{margin-left:auto}
+.churn-pending-matches .churn-mini-table{padding:10px}
+.churn-pending-help{padding:13px 18px;color:#828e97;font-size:11px;line-height:1.7;border-top:1px solid #edf0f2}
+.churn-network-import{padding:22px;margin:0 0 14px}
+.churn-network-information{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid #e4e9ed;border-radius:8px;background:#f8fafb;color:#6f7e89;font-size:11px;line-height:1.7;margin:12px 0 14px}
+.churn-network-information svg{flex:none;color:#cc8b54}
+.churn-network-drop{display:flex;align-items:center;flex-direction:column;gap:10px;text-align:center;padding:27px 16px;background:#fafbfc;border:2px dashed #d7e0e5;border-radius:11px;cursor:pointer;color:#8795a0}
+.churn-network-drop:hover,.churn-network-drop.has-file{background:#f6fafc;border-color:#94a8b6}
+.churn-network-drop strong{color:#42515b;font-size:13px;overflow-wrap:anywhere}
+.churn-network-drop small{font-size:10px;line-height:1.7}
+.churn-network-drop input{display:none}
+.churn-network-preview{margin:17px 0 0;border:1px solid #e3e9ed;border-radius:10px;overflow:hidden}
+.churn-network-preview-title{display:flex;gap:10px;justify-content:space-between;padding:13px 15px;background:#f7f9fa;align-items:center;font-size:11px}
+.churn-network-preview-title strong{color:#34434e}
+.churn-network-preview-title span{color:#85919a}
+.churn-network-review{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:#e8edf0}
+.churn-network-review>div{padding:15px 12px;background:#fff;min-width:0}
+.churn-network-review small{display:block;color:#8d99a2;font-size:10px;line-height:1.5}
+.churn-network-review strong{display:block;color:#35434d;font-size:20px;margin-top:7px}
+.churn-network-preview .churn-mini-table{max-height:330px;overflow:auto}
+.churn-network-preview .churn-mini-table table{min-width:600px}
+.churn-network-preview .churn-mini-table th,.churn-network-preview .churn-mini-table td{font-size:10px;padding:11px}
+.churn-network-warnings{padding:11px 14px;border-top:1px solid #e9edf0;color:#9a7546}
+.churn-network-warnings summary{display:flex;gap:8px;align-items:center;cursor:pointer;font-size:11px;font-weight:750}
+.churn-network-warnings summary svg:last-child{margin-left:auto}
+.churn-network-warnings p{font-size:11px;line-height:1.7;padding:5px 0 0;margin:8px 0;color:#887b6d}
+.churn-network-overwrite{display:flex;gap:9px;align-items:flex-start;padding:13px 15px;border-top:1px solid #e9eef1;background:#fff8f0;line-height:1.7;color:#926b49;font-size:11px}
+.churn-network-overwrite input{margin-top:3px;accent-color:#c48350}
+.churn-network-import .churn-import-footer{margin-top:15px}
+@media(max-width:1200px){.churn-breakdown{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){
+ .churn-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .churn-breakdown>div{padding:12px 10px}
+ .churn-breakdown strong{font-size:17px}
+ .churn-network-import{padding:14px}
+ .churn-network-review{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .churn-network-preview-title{flex-wrap:wrap}
+}
