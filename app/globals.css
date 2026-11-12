@@ -1026,3 +1026,13 @@
  .cc-email-buttons .btn{width:100%;justify-content:center}
  .cc-email-provider-link{justify-content:center;width:100%}
 }
+
+
+/* Diagnóstico explícito do serviço de e-mail */
+.cc-email-lasttest{display:flex;align-items:flex-start;gap:10px;border-radius:8px;padding:12px 14px;
+ margin:12px 0;font-size:11px;line-height:1.75}
+.cc-email-lasttest svg{flex:none;margin-top:1px}
+.cc-email-lasttest.success{background:#edf8f2;border:1px solid #d4eadd;color:#2f7957}
+.cc-email-lasttest.failed{background:#fff5ec;border:1px solid #edd7c4;color:#996c4b}
+.cc-email-lasttest strong{font-weight:780}
+.cc-email-help a{color:#7d5d43;text-decoration:underline;text-underline-offset:2px}
