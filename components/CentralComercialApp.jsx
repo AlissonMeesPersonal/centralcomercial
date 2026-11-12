@@ -164,6 +164,7 @@ export default function Home({accessRole}) {
     title:current.title||"Demanda",details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId});
    setTasks(list=>list.map(t=>t.id===id?{...synced,updatedAt:new Date().toISOString(),
     history:[...(t.history||[]),{at:new Date().toISOString(),action:"Etapa alterada para "+stage,by:"Usuário autenticado"}]}:t));
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
    notify("Etapa alterada e registrada no Histórico.");
   }catch(err){notify(err.message||"Não foi possível registrar a etapa.");}
  }
@@ -206,6 +207,7 @@ export default function Home({accessRole}) {
     details:"Etapa: "+updated.stage+(updated.category?" • "+updated.category:""),
     unitId:updated.unitId});
    setTasks(list=>exists?list.map(t=>t.id===editing.id?synced:t):[synced,...list]);
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
    setDrawer(null);setError("");notify("Demanda salva e registrada no Histórico.");
   }catch(err){setError(err.message||"Falha ao registrar a demanda.");}
  }
@@ -220,6 +222,7 @@ export default function Home({accessRole}) {
     title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId});
    setTasks(list=>list.map(t=>t.id===updated.id?synced:t));
    setEditing(synced);setDrawer(null);setError("");
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
    notify(next?"Demanda arquivada.":"Demanda restaurada.");
   }catch(err){setError(err.message||"Falha ao atualizar a demanda.");}
  }
