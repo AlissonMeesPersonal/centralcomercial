@@ -279,52 +279,98 @@ export default function ChurnDashboard({units=[],accessRole}){
   </section>}
 
   {result.error&&<div className="validation"><AlertCircle size={18}/>{result.error}</div>}
+  <div className="churn-period-selector">
+   <div><strong>Período de análise</strong><span>Compare um mês específico ou consolide vários meses, como no relatório original.</span></div>
+   <div className="churn-period-buttons">
+    <button type="button" className={!isRange?"active":""} onClick={()=>setMode("mensal")}>Mês individual</button>
+    <button type="button" className={isRange?"active":""} onClick={()=>setMode("periodo")}>Período acumulado</button>
+   </div>
+  </div>
   <div className="churn-filters">
-   <label><CalendarDays size={16}/><select aria-label="Ano de referência" value={year} onChange={e=>{setYear(Number(e.target.value));setMonth("latest");}}>{Array.from({length:12},(_,i)=>new Date().getFullYear()+1-i).map(y=><option key={y} value={y}>{y}</option>)}</select></label>
-   <label><CalendarDays size={16}/><select aria-label="Mês de referência" value={actualMonth} onChange={e=>setMonth(e.target.value)}>{months.map((m,i)=><option key={i} value={year+"-"+String(i+1).padStart(2,"0")}>{m+"/"+year}</option>)}</select></label>
-   <label><Filter size={16}/><select aria-label="Estado" value={state} onChange={e=>setState(e.target.value)}><option value="all">Todos os estados</option>{states.map(uf=><option key={uf} value={uf}>{stateFull[uf]||uf} · {uf}</option>)}</select></label>
+   <label><CalendarDays size={16}/><select aria-label="Ano de referência" value={year}
+    onChange={e=>{setYear(Number(e.target.value));setMonth("latest");setFromIndex(1);setToIndex("latest");}}>
+    {Array.from({length:12},(_,i)=>new Date().getFullYear()+1-i).map(y=><option key={y} value={y}>{y}</option>)}
+   </select></label>
+   {isRange?<>
+    <label className="churn-period-month"><span>De</span><select aria-label="Mês inicial do período" value={fromIndex}
+     onChange={e=>setFromIndex(Number(e.target.value))}>
+     {months.map((name,i)=><option key={i} value={i+1}>{name}/{year}</option>)}
+    </select></label>
+    <label className="churn-period-month"><span>Até</span><select aria-label="Mês final do período" value={toIndex}
+     onChange={e=>setToIndex(e.target.value==="latest"?"latest":Number(e.target.value))}>
+     <option value="latest">Último mês com dados</option>
+     {months.map((name,i)=><option key={i} value={i+1}>{name}/{year}</option>)}
+    </select></label>
+   </>:<label><CalendarDays size={16}/><select aria-label="Mês de referência" value={actualMonth} onChange={e=>setMonth(e.target.value)}>
+    {months.map((name,i)=><option key={i} value={rangeKey(year,i)}>{name}/{year}</option>)}
+   </select></label>}
+   <label><Filter size={16}/><select aria-label="Estado" value={state} onChange={e=>setState(e.target.value)}>
+    <option value="all">Todos os estados</option>{states.map(uf=><option key={uf} value={uf}>{stateFull[uf]||uf} · {uf}</option>)}
+   </select></label>
    <label className="churn-search"><Search size={16}/><input aria-label="Pesquisar unidade" placeholder="Pesquisar unidade ou cidade" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <button className="btn secondary" onClick={downloadResults} disabled={!monthlyRows.length}><Download size={16}/> Exportar CSV</button>
   </div>
+  <div className="churn-selected-period">
+   <CalendarDays size={15}/>
+   <strong>{selectedPeriodLabel}</strong>
+   <span>{isRange?"Acumulado das competências selecionadas":"Dados de uma única competência"}</span>
+   <span className="churn-period-count">{coverage} / {eligible.length} unidade(s) com dados</span>
+  </div>
+  {!validRange&&<div className="validation"><AlertCircle size={16}/> O mês inicial não pode ser posterior ao mês final.</div>}
 
   <div className="churn-kpis">
-   <KPICard title="Churn consolidado" value={fmtPct(summaryRate)} description={"Base inicial: "+fmtCount(baseShown)+" alunos"} Icon={TrendingDown} iconTone="churn-orange"/>
-   <KPICard title="Total de saídas" value={fmtCount(exitsShown)} description={"Cancelados: "+fmtCount(cancelledShown)} Icon={ArrowDownRight} iconTone="churn-red"/>
-   <KPICard title="Base inicial" value={fmtCount(baseShown)} description="Total de alunos informados" Icon={UsersRoundIcon} iconTone="churn-blue"/>
-   <KPICard title="Unidades com dados" value={coverage+" / "+eligible.length} description={"Cobertura: "+(eligible.length?fmtPct(coverage/eligible.length*100):"Não informado")} Icon={Building2} iconTone="churn-green"/>
+   <KPICard title={reportPeriodWarning?"Churn acumulado estimado":"Churn mensal"} value={reportPeriodWarning?fmtPctOne(summaryRate):fmtPct(summaryRate)}
+    description={reportPeriodWarning?"Estimativa para comparação · veja fórmula abaixo":"Saídas ÷ alunos iniciais"} Icon={TrendingDown} iconTone="churn-orange"/>
+   <KPICard title="Total de entradas" value={fmtCount(entriesShown)} description={selectedPeriodLabel} Icon={ArrowUpRight} iconTone="churn-green"/>
+   <KPICard title="Total de saídas" value={fmtCount(exitsShown)} description={"Cancelamentos isolados: "+fmtCount(cancelledShown)} Icon={ArrowDownRight} iconTone="churn-red"/>
+   <KPICard title="Crescimento líquido" value={(growthShown>0?"+":"")+fmtCount(growthShown)}
+    description={fmtPctOne(growthPercent)+" sobre a base acumulada"} Icon={growthShown>=0?TrendingUp:TrendingDown} iconTone={growthShown>=0?"churn-green":"churn-red"}/>
   </div>
 
+  {reportPeriodWarning&&baseShown>0&&<div className="churn-period-methodology">
+   <Info size={18}/>
+   <div><strong>Churn acumulado: comparação estimada</strong>
+    <p>O relatório de origem mostra o churn de intervalos como janeiro a outubro, mas não informa sua fórmula exata.
+     Para aproximar esse resultado, usamos <b>saídas totais ÷ (soma das bases iniciais + metade das entradas) × 100</b>.
+     Para a unidade Santa Cruz do Sul, o cálculo resulta em 11,9% (estimativa). A taxa simples, obtida por
+     saídas ÷ soma das bases iniciais, é <b>{fmtPct(simpleRate)}</b>.
+     Nenhum desses dois métodos foi confirmado como fórmula oficial do sistema de origem.</p>
+    <div className="churn-methodology-values">Saídas: {fmtCount(exitsShown)} · Entradas: {fmtCount(entriesShown)} · Bases mensais somadas: {fmtCount(baseShown)} alunos-mês</div>
+   </div>
+  </div>}
+
   {networkOfficial&&<section className="panel churn-source-overview">
-   <div className="section-title"><div><h3>Composição do churn da rede</h3>
-    <p>Valores do relatório exportado · {dateLabel(actualMonth)} · {Number(sourceTotal.source_rows)} registros de origem</p></div>
+   <div className="section-title"><div><h3>Composição das movimentações da rede</h3>
+    <p>{selectedPeriodLabel} · {networkTotals.source_rows} linhas de origem no período</p></div>
     <span className="tag">Fonte: Churn.xlsx</span></div>
    <div className="churn-breakdown">
     {[
-     ["Cancelados",sourceTotal.cancelled],
-     ["Vencidos",sourceTotal.expired],
-     ["Desistências",sourceTotal.dropouts],
-     ["Suspensos",sourceTotal.suspended],
-     ["Entradas totais",sourceTotal.total_entries_reported],
-     ["Saídas totais",sourceTotal.total_exits_reported]
+     ["Cancelados",networkTotals.cancelled_count],
+     ["Vencidos",networkTotals.expired],
+     ["Desistências",networkTotals.dropouts],
+     ["Suspensos",networkTotals.suspended],
+     ["Entradas totais",networkTotals.total_entries],
+     ["Saídas totais",networkTotals.total_exits]
     ].map(([label,value])=><div key={label}><small>{label}</small><strong>{fmtCount(value)}</strong></div>)}
    </div>
-   <p className="churn-source-caption">No relatório original, o churn considera <strong>todas as saídas</strong>. Os cancelados isoladamente não representam o indicador completo. O consolidado usa o total informado no rodapé da planilha.</p>
+   <p className="churn-source-caption">Os totais oficiais da rede são lidos dos rodapés do relatório importado. No período, a base acumulada representa a soma de alunos ativos iniciais por mês — não alunos distintos. Selecione um mês para ver o churn mensal direto.</p>
    {discrepancy!==0&&<div className="churn-source-warning"><Info size={16}/>
-     Há uma diferença de {fmtCount(Math.abs(discrepancy))} saída(s) entre o rodapé da planilha ({fmtCount(sourceTotal.total_exits_reported)}) e a soma das unidades ({fmtCount(sourceTotal.exits_detail)}). Mantivemos ambos os valores, sem distribuir a diferença arbitrariamente.</div>}
+    Diferença de {fmtCount(Math.abs(discrepancy))} saída(s) entre o total do rodapé ({fmtCount(networkTotals.total_exits)}) e a soma das linhas ({fmtCount(networkTotals.exits_detail)}).
+    A diferença é preservada, sem atribuição artificial a unidades.</div>}
   </section>}
   {canImport&&unmatchedMonth.length>0&&<details className="churn-pending-matches">
-    <summary><AlertCircle size={18}/> {unmatchedMonth.length} registro(s) do mês aguardando conciliação com o diretório <ChevronDown size={17}/></summary>
+    <summary><AlertCircle size={18}/> {unmatchedMonth.length} código(s) sem vínculo no período (inclui treinamento, quando presente) <ChevronDown size={17}/></summary>
     <div className="churn-pending-help">Os resultados foram preservados pelo código da planilha, mas ainda não foram atribuídos a uma unidade do diretório. Eles estão incluídos nos totais gerais oficiais, porém não nos filtros por estado.</div>
     <div className="churn-mini-table"><table><thead><tr><th>Código</th><th>Nome na planilha</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th></tr></thead><tbody>
-     {unmatchedMonth.map(r=><tr key={r.source_code}><td>{r.source_code}</td><td>{r.source_label}</td><td>{fmtCount(r.active_start)}</td><td>{fmtCount(r.total_exits)}</td><td>{fmtPct(r.churn)}</td></tr>)}
+     {unmatchedMonth.map(r=><tr key={r.source_code}><td>{r.source_code}</td><td>{r.source_label}</td><td>{fmtCount(r.active_start)}</td><td>{fmtCount(r.total_exits)}</td><td>{isRange?fmtPctOne(r.churn):fmtPct(r.churn)}</td></tr>)}
     </tbody></table></div>
   </details>}
 
   <div className="churn-main-grid">
    <section className="panel churn-trend-panel">
-    <div className="section-title"><div><h3>Evolução do churn</h3><p>Taxa mensal consolidada ponderada · {year}</p></div><BarChart3 size={18} color="#8a969e"/></div>
+    <div className="section-title"><div><h3>Evolução mensal do churn</h3><p>Taxa simples de cada mês · {year}</p></div><BarChart3 size={18} color="#8a969e"/></div>
     <div className="churn-bars" role="img" aria-label="Gráfico do churn nos doze meses do ano selecionado">
-      {trends.map(item=><button key={item.month} type="button" className={"churn-bar-item "+(item.key===actualMonth?"active":"")} onClick={()=>setMonth(item.key)} title={item.month+": "+fmtPct(item.rate)}>
+      {trends.map(item=><button key={item.month} type="button" className={"churn-bar-item "+(selectedMonths.has(item.key)?"active":"")} onClick={()=>{setMode("mensal");setMonth(item.key);}} title={item.month+": "+fmtPct(item.rate)}>
        <span className="churn-bar-value">{item.rate===null?"—":fmtPct(item.rate)}</span>
        <span className="churn-bar-track"><span style={{height:item.rate===null?"0%":Math.max(4,item.rate/maxTrend*100)+"%"}}/></span>
        <span className="churn-bar-month">{item.month}</span>
@@ -332,7 +378,7 @@ export default function ChurnDashboard({units=[],accessRole}){
     </div>
    </section>
    <section className="panel churn-state-panel">
-    <div className="section-title"><div><h3>Comparação por estado</h3><p>Churn do mês selecionado</p></div><Building2 size={18} color="#87939c"/></div>
+    <div className="section-title"><div><h3>Comparação por estado</h3><p>Churn de {selectedPeriodLabel.toLowerCase()}</p></div><Building2 size={18} color="#87939c"/></div>
     <div className="churn-state-list">
      {stateMetrics.map(item=><button key={item.state} className={"churn-state-row "+(state===item.state?"active":"")} onClick={()=>setState(previous=>previous===item.state?"all":item.state)}>
       <span><strong>{stateFull[item.state]||item.state}</strong><small>{item.measured} / {item.count} unidades com dados</small></span><div className="churn-state-rate"><b>{fmtPct(item.rate)}</b><div className="progress-track"><span style={{width:(scoreBar(item.rate)||0)+"%"}}/></div></div>
@@ -342,26 +388,27 @@ export default function ChurnDashboard({units=[],accessRole}){
   </div>
 
   <section className="panel churn-ranking">
-   <div className="section-title"><div><h3>Churn por unidade</h3><p>{dateLabel(actualMonth)} · ordenado pela maior taxa de saídas</p></div><span className="tag">{ranked.length} unidades</span></div>
+   <div className="section-title"><div><h3>Churn por unidade</h3><p>{selectedPeriodLabel} · ordenado pela maior taxa de saídas</p></div><span className="tag">{ranked.length} unidades</span></div>
    {result.loading?<div className="empty">Carregando indicadores do Neon…</div>:
    !ranked.length?<div className="empty">Nenhuma unidade corresponde à pesquisa.</div>:
-   <div className="churn-table-wrap"><table><thead><tr><th>Unidade</th><th>Estado</th><th>Ativos início</th><th>Total saídas</th><th>Churn</th><th>Dados</th><th></th></tr></thead>
+   <div className="churn-table-wrap"><table><thead><tr><th>Unidade</th><th>Estado</th><th>{isRange?"Base acumulada (alunos-mês)":"Ativos início"}</th><th>Entradas</th><th>Total saídas</th><th>Churn</th><th>Dados</th><th></th></tr></thead>
     <tbody>{ranked.map(({unit,row,rate:churn})=><tr key={unit.id} className={detailsId===unit.id?"active":""} onClick={()=>setDetailsId(x=>x===unit.id?null:unit.id)}>
       <td><strong>{unit.name}</strong><small>{unit.city||"Cidade não informada"}</small></td>
       <td>{unit.state||"—"}</td>
       <td>{row?fmtCount(row.active_start):"—"}</td>
-      <td>{row?fmtCount(row.cancellations):"—"}</td>
-      <td><span className={"churn-cell "+(churn===null?"unknown":churn>5?"high":churn>3?"medium":"low")}>{fmtPct(churn)}</span></td>
+      <td>{row?fmtCount(row.total_entries):"—"}</td>
+      <td>{row?fmtCount(row.total_exits):"—"}</td>
+      <td><span className={"churn-cell "+(churn===null?"unknown":churn>5?"high":churn>3?"medium":"low")}>{isRange?fmtPctOne(churn):fmtPct(churn)}</span></td>
       <td>{row?<span className="tag success">Informado</span>:<span className="tag">Pendente</span>}</td>
       <td><ChevronDown className={detailsId===unit.id?"expanded":""} size={16}/></td>
      </tr>)}</tbody></table></div>}
   </section>
 
   {unitDetail&&<section className="panel churn-detail-panel">
-   <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.city} · {unitDetail.state}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
+   <div className="section-title"><div><div className="eyebrow">DETALHE POR UNIDADE</div><h3>{unitDetail.name}</h3><p>{unitDetail.city} · {unitDetail.state} · {selectedPeriodLabel}</p></div><button className="icon-button" onClick={()=>setDetailsId(null)}><X size={18}/></button></div>
    <div className="churn-mini-table"><table><thead><tr><th>Competência</th><th>Ativos início</th><th>Cancelados</th><th>Vencidos</th><th>Desistências</th><th>Suspensos</th><th>Total saídas</th><th>Churn</th><th>Novos</th><th>Renovados</th><th>Retornos</th><th>Retorno suspensões</th><th>Total entradas</th><th>Ativos fim</th></tr></thead>
     <tbody>{unitHistory.map(row=><tr key={row.month}><td>{dateLabel(row.month)}</td><td>{fmtCount(row.active_start)}</td><td>{row.cancelled_count==null?"—":fmtCount(row.cancelled_count)}</td><td>{row.expired==null?"—":fmtCount(row.expired)}</td><td>{row.dropouts==null?"—":fmtCount(row.dropouts)}</td><td>{row.suspended==null?"—":fmtCount(row.suspended)}</td><td>{fmtCount(row.total_exits??row.cancellations)}</td><td>{fmtPct(row.churn)}</td><td>{row.enrollments==null?"—":fmtCount(row.enrollments)}</td><td>{row.renewals==null?"—":fmtCount(row.renewals)}</td><td>{row.reactivations==null?"—":fmtCount(row.reactivations)}</td><td>{row.suspension_returns==null?"—":fmtCount(row.suspension_returns)}</td><td>{row.total_entries==null?"—":fmtCount(row.total_entries)}</td><td>{row.active_end==null?"—":fmtCount(row.active_end)}</td></tr>)}</tbody></table>
-    {!unitHistory.length&&<div className="empty">Esta unidade ainda não possui dados no ano selecionado.</div>}
+    {!unitHistory.length&&<div className="empty">Esta unidade ainda não possui dados no período selecionado.</div>}
    </div>
   </section>}
   {!result.loading&&!result.rows.length&&<div className="churn-empty">
@@ -382,7 +429,7 @@ export default function ChurnDashboard({units=[],accessRole}){
    </div>)}
    {!result.batches.length&&!result.sourceImports.length&&<p className="team-secondary">Nenhuma importação realizada até agora.</p>}
   </section>}
-  <p className="churn-footnote"><Info size={14}/> Faixas de cor (até 3%, de 3% a 5%, acima de 5%) são referências visuais, não metas oficiais da 26fit. A base inicial, os componentes de saídas e as competências devem seguir o mesmo critério em todas as unidades.</p>
+  <p className="churn-footnote"><Info size={14}/> Faixas de cor (até 3%, de 3% a 5%, acima de 5%) são referências visuais, não metas oficiais da 26fit. Os componentes de entradas/saídas e as competências devem seguir o mesmo critério em todas as unidades. Em períodos acumulados, a taxa exibida é uma estimativa até confirmação da fórmula do sistema original.</p>
  </section>;
 }
 
