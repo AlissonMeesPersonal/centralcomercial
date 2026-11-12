@@ -97,9 +97,10 @@
 .editor-form .wide{grid-column:1/-1}
 .editor-reload{background:#fff;border:1px solid #d9bbb8;border-radius:6px;padding:5px 8px;color:#aa534e;display:inline-flex;align-items:center;gap:5px}
 .auth-page{min-height:100vh;display:grid;place-items:center;padding:25px;background:#f4f6f7}
-.auth-shell{max-width:470px;width:100%;background:#fff;border:1px solid #e7ecf0;border-radius:17px;padding:27px;box-shadow:0 10px 30px #0c16200b}
+.auth-shell{max-width:470px;width:100%;background:#1c2024;color:#f7f8f9;border:1px solid #363c42;border-radius:17px;padding:27px;box-shadow:0 14px 40px #0c162025}
 .auth-brand{display:flex;align-items:center;gap:12px;border-bottom:1px solid #eef0f2;padding-bottom:18px;margin-bottom:18px}
-.auth-brand strong{display:block;font-size:17px}
-.auth-brand small{display:block;margin-top:5px;font-size:11px;color:#98a2a9}
+.auth-brand strong{display:block;font-size:17px;color:#f5f6f7}
+.auth-brand small{display:block;margin-top:5px;font-size:11px;color:#a6afb8}
 @media(max-width:850px){.editor-row{grid-template-columns:37px minmax(130px,1fr) auto}.editor-leader{display:none}}
 @media(max-width:560px){.editor-form{grid-template-columns:1fr}.editor-form .wide{grid-column:auto}.editor-summary{flex-direction:column;align-items:flex-start}.editor-row{gap:9px}.gate-actions{flex-wrap:wrap}}
+\n/* Marca com contraste correto no formulário de autenticação */\n.auth-brand img{display:block;flex:none;width:94px;height:51px;object-fit:contain}\n.auth-shell .auth-brand{border-bottom-color:#383f46}\n
