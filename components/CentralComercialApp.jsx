@@ -2,6 +2,7 @@
 import UnitsManager from "./UnitsManager";
 import TeamManagement from "./TeamManagement";
 import CampaignUnitSelector from "./CampaignUnitSelector";
+import ChurnDashboard from "./ChurnDashboard";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -9,7 +10,7 @@ import {
   BookOpen, UsersRound, Settings2, Search, Plus, Bell, ArrowUpRight,
   CheckCircle2, Clock3, AlertTriangle, Menu, X, Download, Upload,
   MoreHorizontal, ArrowLeft, ShieldCheck, FileText, Target, Wallet,
-  CircleAlert, Filter, RotateCcw, TrendingUp, Save, Trash2, Eye,
+  CircleAlert, Filter, RotateCcw, TrendingUp, TrendingDown, Save, Trash2, Eye,
   Info, Sparkles, List, Columns3, LockKeyhole, ChevronDown, Check,
   MessageSquare, Pencil, ArrowRight, ChartColumnIncreasing, FolderOpen
 } from "lucide-react";
@@ -33,6 +34,7 @@ const NAV=[
  ["Campanhas",Megaphone],
  ["Calendário",CalendarDays],
  ["Unidades",Building2],
+ ["Churn das unidades",TrendingDown],
  ["Gerenciar unidades",Pencil],
  ["Acervo",BookOpen],
  ["Equipe",UsersRound],
@@ -72,7 +74,7 @@ export default function Home({accessRole}) {
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- useEffect(()=>{if(typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("page")==="manage-units")setNav("Gerenciar unidades");},[]);
+ useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");}},[]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
@@ -180,7 +182,7 @@ export default function Home({accessRole}) {
   <aside className={"sidebar "+(mobile?"mobile-open":"")}>
    <div className="brand"><div className="brand-logo"><img src="/logo_v2.png" alt="26fit" width="100" height="54"/></div><div className="brand-copy"><strong>Central</strong><small>Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
    <div className="sidebar-caption">ESPAÇO DE TRABALHO</div>
-   <nav>{NAV.filter(([name])=>(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
+   <nav>{NAV.filter(([name])=>(name!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
    <div className="sidebar-bottom"><div className="sidebar-footer"><strong>26fit • Central Comercial</strong><small>Planejamento e execução da rede</small></div></div>
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
@@ -282,6 +284,7 @@ export default function Home({accessRole}) {
     </div>
     <Notice>{internalDirectoryState==="ready"?"Cadastro administrativo carregado com liderança, coordenação, CNPJ, endereço e mapa. Os telefones são fornecidos pelo servidor protegido e não são gravados no GitHub ou no armazenamento local.":internalDirectoryState==="loading"?"Carregando cadastro interno de líderes e coordenadores…":"O diretório público continua disponível. Não foi possível carregar os dados administrativos protegidos; verifique o acesso autorizado na Vercel."} A gestão de demandas permanece local até a integração do banco compartilhado.</Notice>
    </>}
+   {nav==="Churn das unidades"&&<ChurnDashboard units={units} accessRole={accessRole}/>}
    {nav==="Gerenciar unidades"&&<UnitsManager units={units} notify={notify} onSaved={unit=>setUnits(previous=>previous.some(u=>u.id===unit.id)?previous.map(u=>u.id===unit.id?{...u,...unit}:u):[...previous,unit])}/>}
    {nav==="Acervo"&&<><div className="heading-row"><div><div className="eyebrow">CONHECIMENTO DA REDE</div><h1>Acervo de aprendizados</h1><p>Registre, consulte e reaproveite o que funcionou.</p></div><BookOpen size={30} color="#8b949d"/></div><div className="panel"><div className="section-title"><h3>Demandas concluídas</h3><Tag>{tasks.filter(t=>t.stage==="Concluído").length} registros</Tag></div>{tasks.filter(t=>t.stage==="Concluído").map(t=><button key={t.id} className="learning-card" onClick={()=>openTask(t)}><div><h4>{t.title}</h4><p>{t.learning?.worked}</p><Tag tone="success">{t.learning?.decision||"Concluído"}</Tag></div><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.stage==="Concluído")&&<div className="empty">Quando uma demanda for concluída com aprendizados, ela aparecerá aqui.</div>}</div></>}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}

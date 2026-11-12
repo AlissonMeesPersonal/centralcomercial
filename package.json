@@ -14,7 +14,8 @@
     "lucide-react": "^0.468.0",
     "@neondatabase/auth": "0.6.0-beta",
     "@neondatabase/auth-ui": "0.4.0-beta",
-    "@neondatabase/serverless": "1.2.0"
+    "@neondatabase/serverless": "1.2.0",
+    "read-excel-file": "9.3.14"
   },
   "engines": {
     "node": ">=20.9.0"
