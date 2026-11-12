@@ -970,3 +970,21 @@
 .directory-people a.directory-whatsapp:hover{color:#136446;text-decoration:underline}
 .directory-people a.directory-whatsapp:focus-visible{outline:2px solid #258361;outline-offset:3px}
 .directory-people .directory-phone-invalid{color:#6d7883;font-size:11px}
+
+
+/* Campos de data: calendário nativo acessível ao clicar em qualquer área */
+.cc-date-calendar-input{position:relative;display:flex;align-items:center;width:100%;min-width:0}
+.cc-date-calendar-input>input{display:block;flex:1;min-width:0;width:100%;padding-right:46px!important;min-height:40px;color-scheme:light}
+.cc-date-calendar-input>input:not(:disabled){cursor:pointer}
+.cc-date-calendar-trigger{position:absolute;top:50%;right:7px;transform:translateY(-50%);
+ display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+ border:0;border-radius:7px;color:#838f98;background:#f5f7f8;cursor:pointer;z-index:1}
+.cc-date-calendar-trigger:hover{background:#fff0e5;color:#ba7540}
+.cc-date-calendar-trigger:focus-visible{outline:2px solid #de985e;outline-offset:2px}
+.cc-date-calendar-trigger:disabled{opacity:.5;cursor:not-allowed}
+/* A ação permanece no botão acessível; não exibir dois ícones no Chrome. */
+.cc-date-calendar-input>input::-webkit-calendar-picker-indicator{opacity:0;width:24px}
+@media(max-width:550px){
+ .cc-date-calendar-input>input{font-size:16px}
+ .cc-date-calendar-trigger{right:5px}
+}
