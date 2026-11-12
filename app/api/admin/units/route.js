@@ -26,11 +26,8 @@ export async function POST(request){
   let unit;try{unit=normalizeUnit(body.unit,id);}catch(e){return err(e.message,422);}
   const sql=database();
   if(!creating){
-    const base=JSON.parse(process.env.CENTRAL_INTERNAL_DIRECTORY_JSON||"{}");
-    if(!Array.isArray(base.units)||!base.units.some(x=>x.id===id)){
-      const stored=await sql.query("SELECT id FROM cc_unit_records WHERE id=$1",[id]);
-      if(!stored.length)return err("Unidade não encontrada.",404);
-    }
+    const stored=await sql.query("SELECT id FROM cc_unit_seed WHERE id=$1 UNION SELECT id FROM cc_unit_records WHERE id=$1 LIMIT 1",[id]);
+    if(!stored.length)return err("Unidade não encontrada.",404);
   }
   const query=[
     "WITH saved AS (",

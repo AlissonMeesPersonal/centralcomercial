@@ -85,7 +85,7 @@ export default function Home() {
   fetch("/api/internal-units",{cache:"no-store",credentials:"same-origin",signal:controller.signal})
    .then(async response=>{if(!response.ok)throw Error("Diretório interno indisponível");return response.json();})
    .then(payload=>{
-    if(!Array.isArray(payload.units)||payload.units.length!==83)throw Error("Cadastro interno incompleto");
+    if(!Array.isArray(payload.units)||payload.units.length<83)throw Error("Cadastro interno incompleto");
     setUnits(previous=>{
       const byId=new Map(mergeOfficialUnits(previous).map(unit=>[unit.id,unit]));
       for(const incoming of payload.units){
