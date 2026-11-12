@@ -3,6 +3,7 @@ import UnitsManager from "./UnitsManager";
 import TeamManagement from "./TeamManagement";
 import CampaignUnitSelector from "./CampaignUnitSelector";
 import ChurnDashboard from "./ChurnDashboard";
+import ChurnOverview from "./ChurnOverview";
 import LearningArchive from "./LearningArchive";
 import HistoryDashboard from "./HistoryDashboard";
 import CalendarWorkspace from "./CalendarWorkspace";
@@ -307,6 +308,7 @@ export default function Home({accessRole}) {
    {nav==="Visão geral"&&<>
     <div className="heading-row"><div><div className="eyebrow">PAINEL DE CONTROLE <span className="dot">·</span> {new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"})}</div><h1>Visão geral</h1><p>Organize a estratégia da rede e acompanhe a execução de cada unidade.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div>
     <div className="hero"><div><div className="hero-kicker"><Sparkles size={14}/> CENTRAL DE PLANEJAMENTO</div><h2>Uma rede alinhada.<br/><span>Resultados em movimento.</span></h2><p>Planeje campanhas, distribua entregas e transforme aprendizados em novas ações.</p><button onClick={()=>moveNav("Campanhas")}>Ver campanhas <ArrowUpRight size={16}/></button></div><div className="hero-decoration"><span className="ring one"/><span className="ring two"/><span className="ring three"/><div className="hero-card"><ChartColumnIncreasing size={22}/><div><b>Planejamento → Execução</b><small>Visão completa da jornada</small></div><CheckCircle2 size={17}/></div></div></div>
+    {["developer","admin","gestor","lider"].includes(accessRole)&&<ChurnOverview onOpen={()=>moveNav("Churn das unidades")}/>}
     <div className="kpis">
      <button className="kpi" onClick={()=>quickFilter({stage:"",period:""})}><span><ClipboardList size={17}/> Demandas abertas</span><div><strong>{openCount}</strong><ArrowUpRight size={19}/></div><small>Em todas as etapas</small></button>
      <button className="kpi" onClick={()=>quickFilter({stage:"",period:"overdue"})}><span><AlertTriangle size={17}/> Atrasadas</span><div><strong>{overdue}</strong><ArrowUpRight size={19}/></div><small>Prazo já ultrapassado</small></button>
