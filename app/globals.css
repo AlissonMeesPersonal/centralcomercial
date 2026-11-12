@@ -103,4 +103,7 @@
 .auth-brand small{display:block;margin-top:5px;font-size:11px;color:#a6afb8}
 @media(max-width:850px){.editor-row{grid-template-columns:37px minmax(130px,1fr) auto}.editor-leader{display:none}}
 @media(max-width:560px){.editor-form{grid-template-columns:1fr}.editor-form .wide{grid-column:auto}.editor-summary{flex-direction:column;align-items:flex-start}.editor-row{gap:9px}.gate-actions{flex-wrap:wrap}}
-\n/* Marca com contraste correto no formulário de autenticação */\n.auth-brand img{display:block;flex:none;width:94px;height:51px;object-fit:contain}\n.auth-shell .auth-brand{border-bottom-color:#383f46}\n
+
+/* Marca com contraste correto no formulário de autenticação */
+.auth-brand img{display:block;flex:none;width:94px;height:51px;object-fit:contain}
+.auth-shell .auth-brand{border-bottom-color:#383f46}
