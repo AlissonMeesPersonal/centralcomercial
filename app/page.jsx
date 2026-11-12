@@ -137,7 +137,7 @@ export default function Home() {
  if(!ready)return <main className="boot">Carregando Central Comercial…</main>;
  return <div className="shell">
   <aside className={"sidebar "+(mobile?"mobile-open":"")}>
-   <div className="brand"><div className="brand-logo"><img src="/logo-26fit-limpa.png" alt="Logo oficial da 26fit" width="70" height="38"/></div><div><strong>26fit</strong><small>Central Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
+   <div className="brand"><div className="brand-logo"><img src="/logo-26fit-transparente.svg" alt="Logo oficial da 26fit" width="70" height="38"/></div><div><strong>26fit</strong><small>Central Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
    <div className="sidebar-caption">ESPAÇO DE TRABALHO</div>
    <nav>{NAV.map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
    <div className="sidebar-bottom"><div className="sidebar-footer"><strong>26fit • Central Comercial</strong><small>Planejamento e execução da rede</small></div></div>
