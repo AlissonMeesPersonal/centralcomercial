@@ -63,12 +63,13 @@ export async function PATCH(request){
   if(existing[0].kind==="prazo_demanda")return error("Prazos de demandas são atualizados pela própria demanda.",403);
   let data;try{data=validateCalendarInput(body);await checkCalendarScope(access,data);}
   catch(e){return error(e.message,422);}
-  // A atualização dos participantes, do evento e da auditoria é atômica.
   const rows=await sql.query(
-    "WITH updated AS (UPDATE cc_calendar_events SET kind=$3,title=$4,description=$5,unit_id=$6,location=$7,starts_at=$8::timestamptz,ends_at=$9::timestamptz,status=$10,revision=revision+1,updated_at=now() WHERE id=$1::uuid AND revision=$2 RETURNING *), removed AS (DELETE FROM cc_calendar_attendees WHERE event_id IN (SELECT id FROM updated) RETURNING event_id), audience AS (INSERT INTO cc_calendar_attendees(event_id,email) SELECT u.id,a.email FROM updated u CROSS JOIN LATERAL unnest($11::text[]) a(email) ON CONFLICT DO NOTHING RETURNING email), aud AS (INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,before_data,after_data) SELECT updated.id,$12,CASE WHEN updated.status='cancelado' THEN 'cancelled' WHEN updated.status='concluido' THEN 'completed' ELSE 'updated' END,updated.revision,$13::jsonb,to_jsonb(updated) FROM updated RETURNING event_id) SELECT id,revision FROM updated",
-    [id,body.revision,data.kind,data.title,data.description,data.unitId,data.location,data.startsAt,data.endsAt,data.status,data.attendees,access.email,JSON.stringify(existing[0])]
+   "SELECT cc_calendar_update_event($1::uuid,$2,$3::jsonb,$4::text[],$5)::integer AS revision",
+   [id,body.revision,JSON.stringify(data),data.attendees,access.email]
   );
-  if(!rows.length)return error("Este evento foi alterado por outra pessoa. Atualize a agenda e tente novamente.",409);
-  return respond({ok:true,id:rows[0].id,revision:rows[0].revision});
+  const revision=Number(rows[0]?.revision);
+  if(revision===-1)return error("Conflito de edição: outra pessoa atualizou este evento. Atualize a agenda.",409);
+  if(revision===-2)return error("Evento não encontrado.",404);
+  return respond({ok:true,id,revision});
  }catch{return error("Não foi possível atualizar o evento.",503);}
 }
