@@ -815,3 +815,23 @@
  .churn-network-review{grid-template-columns:repeat(2,minmax(0,1fr))}
  .churn-network-preview-title{flex-wrap:wrap}
 }
+
+
+/* Conciliação dos códigos antigos do churn com o diretório 26fit */
+.churn-matching{margin:15px 0;padding:20px 22px}
+.churn-matching-intro{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+ background:#f7fafb;border:1px solid #e5eaee;color:#778791;border-radius:8px;
+ font-size:11px;line-height:1.7;margin:0 0 14px}
+.churn-matching-intro svg{flex:none;color:#cd945e}
+.churn-matching-list{margin-top:14px;border:1px solid #e8ecef;border-radius:10px;overflow:hidden}
+.churn-matching-row{display:grid;grid-template-columns:minmax(160px,1fr) minmax(220px,1.35fr) auto;
+ gap:12px;align-items:center;border-bottom:1px solid #e9edf0;padding:13px 15px;background:#fff}
+.churn-matching-row:last-child{border-bottom:0}
+.churn-matching-row>div{min-width:0}
+.churn-matching-row strong{display:block;color:#35434d;font-size:11px}
+.churn-matching-row small{display:block;color:#87939b;font-size:10px;margin-top:5px;overflow-wrap:anywhere}
+.churn-matching-row select{background:#fff;border:1px solid #dce5e9;border-radius:8px;
+ padding:10px;font-size:11px;color:#45545e;max-width:100%;min-width:0}
+.churn-matching-row .btn{font-size:11px;min-height:37px}
+.churn-matching-empty{display:flex;align-items:center;gap:9px;color:#6a9a81;font-size:12px;padding:15px}
+@media(max-width:680px){.churn-matching{padding:14px}.churn-matching-row{grid-template-columns:1fr}.churn-matching-row .btn{width:100%}}
