@@ -197,3 +197,26 @@
 .team-units-edit:hover{background:#f3f6f8}
 .team-assignment-drawer .team-unit-options{max-height:55vh}
 @media(max-width:640px){.team-units-edit{order:4}.campaign-unit-summary{flex-wrap:wrap}}
+
+/* Seletor de campanhas: unidades 26fit agrupadas por UF */
+.campaign-unit-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.campaign-unit-controls .campaign-unit-search{flex:1 1 210px}
+.campaign-all-button{font-size:11px!important;min-height:38px!important}
+.campaign-unit-help{font-size:11px;color:#75828d;line-height:1.6;margin:0}
+.campaign-state-groups{max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding-right:3px;scrollbar-color:#cbd3d9 transparent}
+.campaign-state-group{background:#fff;border:1px solid #e3e8eb;border-radius:10px;overflow:hidden}
+.campaign-state-header{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f7f9fa;padding:10px 12px}
+.campaign-state-expand{display:flex;align-items:center;gap:10px;min-width:0;flex:1;text-align:left;background:transparent;border:0;padding:2px;color:#3d4953}
+.campaign-state-expand>svg{flex:none;transform:rotate(-90deg);transition:transform .16s;color:#7f8b94}
+.campaign-state-expand>svg.expanded{transform:rotate(0)}
+.campaign-state-expand span{min-width:0}
+.campaign-state-expand strong{display:block;font-size:12px;font-weight:740;color:#293740}
+.campaign-state-expand small{display:block;font-size:10px;color:#84919b;margin-top:4px}
+.campaign-state-select{flex:none;background:#fff;border:1px solid #dfe5e9;border-radius:7px;padding:8px 10px;font-size:10px;font-weight:720;color:#44525d}
+.campaign-state-select:hover{background:#eaf0f4}
+.campaign-state-items{padding:9px;display:flex;flex-direction:column;gap:7px;border-top:1px solid #e8ecef}
+.campaign-state-items .select-unit{margin:0;padding:11px 12px;background:#fff;border:1px solid #edf0f2}
+.campaign-state-items .select-unit strong{color:#26343e;font-size:12px;line-height:1.4}
+.campaign-state-items .select-unit small{display:flex;align-items:center;gap:4px;color:#798792;margin-top:4px;line-height:1.45;font-size:10px}
+.campaign-state-items .select-unit input{accent-color:#333b43}
+@media(max-width:640px){.campaign-all-button{width:100%}.campaign-state-header{gap:6px;padding:9px}.campaign-state-select{padding:8px;font-size:10px}.campaign-state-groups{max-height:50vh}}
