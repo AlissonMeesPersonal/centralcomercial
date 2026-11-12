@@ -79,7 +79,7 @@ export default function Home({accessRole}) {
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");}},[]);
+ useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar")setNav("Calendário");}},[]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
@@ -158,9 +158,10 @@ export default function Home({accessRole}) {
   if(current.archived){notify("Restaure a demanda antes de alterar sua etapa.");return;}
   if(stage==="Concluído"){openTask({...current,stage});return;}
   try{
+   const synced=await syncTaskDeadline({...current,stage});
    await recordActivity({module:"demanda",action:"stage_changed",entityId:current.id,
     title:current.title||"Demanda",details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId});
-   setTasks(list=>list.map(t=>t.id===id?{...t,stage,updatedAt:new Date().toISOString(),
+   setTasks(list=>list.map(t=>t.id===id?{...synced,updatedAt:new Date().toISOString(),
     history:[...(t.history||[]),{at:new Date().toISOString(),action:"Etapa alterada para "+stage,by:"Usuário autenticado"}]}:t));
    notify("Etapa alterada e registrada no Histórico.");
   }catch(err){notify(err.message||"Não foi possível registrar a etapa.");}

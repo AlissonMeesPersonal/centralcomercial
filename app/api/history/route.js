@@ -8,7 +8,7 @@ export const revalidate=0;
 const headers={"Cache-Control":"private, no-store, max-age=0","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const error=(message,status)=>Response.json({error:message},{status,headers});
 const managers=["developer","admin","gestor"];
-const modules=["Demandas","Campanhas","Equipe","Unidades","Churn","Configurações"];
+const modules=["Demandas","Campanhas","Equipe","Unidades","Churn","Calendário","Configurações"];
 const statuses=["concluido","em_andamento","arquivada"];
 const allowedModules=["demanda","campanha","configuracoes"];
 const allowedActions=["created","updated","completed","stage_changed","archived","restored","demo_removed","backup_imported"];

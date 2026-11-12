@@ -12,11 +12,11 @@ const statusInfo={
 };
 const modules=[
  ["","Todos os módulos"],["Demandas","Demandas"],["Campanhas","Campanhas"],
- ["Unidades","Unidades"],["Equipe","Equipe"],["Churn","Churn"],["Configurações","Configurações"]
+ ["Unidades","Unidades"],["Equipe","Equipe"],["Calendário","Calendário"],["Churn","Churn"],["Configurações","Configurações"]
 ];
 const moduleIcons={
  Demandas:ClipboardList,Campanhas:Megaphone,Unidades:Building2,Equipe:UsersRound,
- Churn:TrendingDown,Configurações:SlidersHorizontal
+ Churn:TrendingDown,Calendário:CalendarDays,Configurações:SlidersHorizontal
 };
 const pad=n=>String(n).padStart(2,"0");
 function dayTitle(value){
