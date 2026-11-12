@@ -963,3 +963,10 @@
  .cc-overview-bars{height:135px}
  .cc-overview-unavailable{flex-wrap:wrap;text-align:center}
 }
+
+
+/* Contato direto com o líder pelo WhatsApp no diretório de unidades */
+.directory-people a.directory-whatsapp{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;max-width:100%;color:#258361;font-weight:700;text-decoration:none;padding:3px 0;border-radius:4px}
+.directory-people a.directory-whatsapp:hover{color:#136446;text-decoration:underline}
+.directory-people a.directory-whatsapp:focus-visible{outline:2px solid #258361;outline-offset:3px}
+.directory-people .directory-phone-invalid{color:#6d7883;font-size:11px}
