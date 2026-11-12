@@ -15,10 +15,17 @@ export async function GET(){
   const rows=await sql.query("SELECT id,payload,revision,updated_at FROM cc_unit_records ORDER BY created_at");
   const map=new Map(seed.map(record=>[record.id,{...record.payload,revision:0}]));
   for(const row of rows){map.set(row.id,{...(map.get(row.id)||{}),...row.payload,revision:row.revision,updatedAt:row.updated_at});}
-  const full=[...map.values()];
+  // O código comercial vem exclusivamente do registro de conciliação
+  // do churn. Nunca inferir pelo código sequencial do PDF.
+  const codes=await sql.query("SELECT unit_id,source_code FROM cc_churn_report_units WHERE unit_id IS NOT NULL AND match_status='conciliada'");
+  const byCode=new Map(codes.map(row=>[row.unit_id,Number(row.source_code)]));
+  const full=[...map.values()].map(unit=>({
+    ...unit,
+    churnCode:byCode.get(unit.id)??null
+  }));
   const visible=["developer","admin","gestor"].includes(access.role)?full:full.map(x=>({
     id:x.id,name:x.name,city:x.city,state:x.state,region:x.region,
-    type:x.type,status:x.status,siteUrl:x.siteUrl,source:x.source,demo:false,revision:x.revision
+    type:x.type,status:x.status,siteUrl:x.siteUrl,source:x.source,demo:false,revision:x.revision,churnCode:x.churnCode
   }));
   return Response.json({units:visible,total:map.size,shared:true},{headers});
  }catch{return Response.json({error:"Banco de unidades indisponível"},{status:503,headers});}
