@@ -3,6 +3,7 @@ import UnitsManager from "./UnitsManager";
 import TeamManagement from "./TeamManagement";
 import CampaignUnitSelector from "./CampaignUnitSelector";
 import ChurnDashboard from "./ChurnDashboard";
+import LearningArchive from "./LearningArchive";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -286,7 +287,27 @@ export default function Home({accessRole}) {
    </>}
    {nav==="Churn das unidades"&&<ChurnDashboard units={units} accessRole={accessRole}/>}
    {nav==="Gerenciar unidades"&&<UnitsManager units={units} notify={notify} onSaved={unit=>setUnits(previous=>previous.some(u=>u.id===unit.id)?previous.map(u=>u.id===unit.id?{...u,...unit}:u):[...previous,unit])}/>}
-   {nav==="Acervo"&&<><div className="heading-row"><div><div className="eyebrow">CONHECIMENTO DA REDE</div><h1>Acervo de aprendizados</h1><p>Registre, consulte e reaproveite o que funcionou.</p></div><BookOpen size={30} color="#8b949d"/></div><div className="panel"><div className="section-title"><h3>Demandas concluídas</h3><Tag>{tasks.filter(t=>t.stage==="Concluído").length} registros</Tag></div>{tasks.filter(t=>t.stage==="Concluído").map(t=><button key={t.id} className="learning-card" onClick={()=>openTask(t)}><div><h4>{t.title}</h4><p>{t.learning?.worked}</p><Tag tone="success">{t.learning?.decision||"Concluído"}</Tag></div><ArrowUpRight size={17}/></button>)}{!tasks.some(t=>t.stage==="Concluído")&&<div className="empty">Quando uma demanda for concluída com aprendizados, ela aparecerá aqui.</div>}</div></>}
+   {nav==="Acervo"&&<LearningArchive
+    tasks={tasks} campaigns={campaigns} units={units} onOpenTask={openTask}
+    onReplicateTask={original=>{const copy=task({
+      title:"Cópia de "+original.title,objective:original.objective||"",category:original.category||"Campanha geral",
+      unitId:original.unitId,owner:original.owner,priority:original.priority||"Média",
+      targetAudience:original.targetAudience||"",offer:original.offer||"",channels:original.channels||"",
+      dependencies:original.dependencies||"",support:original.support||"",
+      indicator:original.indicator||"Matrículas",goal:original.goal??null,
+      budget:original.budget??null,actual:null,investment:null,
+      stage:"Planejamento",campaignId:null,ackVersion:0,
+      blocked:false,blockReason:"",demo:false,
+      checklist:(original.checklist||[]).map(item=>({...item,id:uid(),done:false})),
+      comments:[],history:[],learning:{worked:"",challenges:"",decision:"",pendingReason:""}
+    });openTask(copy);}}
+    onReplicateCampaign={original=>{setError("");setCampaignDraft({
+      id:uid(),title:"Nova ação — "+original.title,description:original.description||"",
+      indicator:original.indicator||"Matrículas",goal:original.goal??null,
+      version:1,units:[],demo:false,createdAt:new Date().toISOString()
+    });setDrawer("campaign");}}
+    onGoTasks={()=>setNav("Demandas")}
+   />}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}
    {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Controle dos dados fictícios desta versão.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>O armazenamento atual é exclusivo do navegador (localStorage), não compartilhado. Não insira dados comerciais, pessoais ou sensíveis antes da ativação da segurança e do banco.</Notice><div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup local</h3><p>Exportação e mesclagem de dados demonstrativos</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label></div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
    </main>
