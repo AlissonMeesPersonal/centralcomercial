@@ -251,8 +251,8 @@ export default function Home() {
           <p>{u.city||"Cidade não informada"} {u.state?"· "+u.state:""} {u.region?"· "+u.region:""}</p>
           {u.address&&<p className="unit-address">{u.address}</p>}
           {(u.leader||u.coordinator)&&<div className="directory-people">
-            <div><span>Líder da unidade</span><strong>{u.leader||"Não informado"}</strong>{u.leaderContact&&<a href={"tel:"+u.leaderContact.replace(/\\D/g,"")} title="Ligar para o líder">{u.leaderContact}</a>}</div>
-            <div><span>Coordenação regional</span><strong>{u.coordinator||"Não informado"}</strong>{u.coordinatorContact&&<a href={"tel:"+u.coordinatorContact.replace(/\\D/g,"")} title="Ligar para a coordenação">{u.coordinatorContact}</a>}</div>
+            <div><span>Líder da unidade</span><strong>{u.leader||"Não informado"}</strong>{u.leaderContact&&<a href={"tel:"+u.leaderContact.replace(/\D/g,"")} title="Ligar para o líder">{u.leaderContact}</a>}</div>
+            <div><span>Coordenação regional</span><strong>{u.coordinator||"Não informado"}</strong>{u.coordinatorContact&&<a href={"tel:"+u.coordinatorContact.replace(/\D/g,"")} title="Ligar para a coordenação">{u.coordinatorContact}</a>}</div>
           </div>}
           {(u.cnpj||u.cep||u.street||u.complement)&&<details className="directory-extra">
             <summary>Dados cadastrais e endereço</summary>
