@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useMemo,useRef,useState} from "react";
 import NetworkChurnImport from "./NetworkChurnImport";
+import ChurnUnitMatching from "./ChurnUnitMatching";
 import {
  Activity,ArrowDownRight,ArrowUpRight,BarChart3,Building2,CalendarDays,CheckCircle2,
  ChevronDown,CloudUpload,Download,FileSpreadsheet,Filter,Info,RefreshCcw,
@@ -194,6 +195,7 @@ export default function ChurnDashboard({units=[],accessRole}){
 
   <div className="churn-formula"><Info size={18}/><span><strong>Churn mensal 26fit</strong> = total de saídas (cancelados + vencidos + desistências + suspensos) ÷ alunos ativos no início do mês × 100. No consolidado da rede usamos os totais oficiais do relatório e, nos filtros, a soma ponderada das unidades identificadas. Base inicial zero aparece como Não informado.</span></div>
 
+  {canImport&&<ChurnUnitMatching units={units} onChanged={()=>reload(year)}/>}
   {canImport&&showImporter&&<NetworkChurnImport onSuccess={importedYear=>{if(importedYear&&importedYear!==year){setMonth("latest");setYear(importedYear);}else{setMonth("latest");reload(year);}}}/>}
   {canImport&&showImporter&&<section className="panel churn-import-panel">
    <div className="section-title"><div><h3>Lançamento avulso (formato simplificado)</h3><p>CSV ou XLSX por unidade, com cancelamentos isolados. Para reproduzir o relatório oficial da rede, utilize o importador acima.</p></div><FileSpreadsheet size={20} color="#77828b"/></div>
