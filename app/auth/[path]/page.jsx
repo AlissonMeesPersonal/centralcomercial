@@ -2,6 +2,7 @@ import { AuthView } from "@neondatabase/auth-ui";
 import { authViewPaths } from "@neondatabase/auth-ui/server";
 import { redirect, notFound } from "next/navigation";
 import { findInvite } from "../../../lib/invitations";
+import AuthPasswordVisibility from "../../../components/AuthPasswordVisibility";
 export const dynamic="force-dynamic";
 export default async function AuthPage({params,searchParams}){
  const {path}=await params;
@@ -11,7 +12,8 @@ export default async function AuthPage({params,searchParams}){
  return <main className="auth-page"><div className="auth-shell">
  <header className="auth-brand"><img src="/logo_v2.png" alt="26fit" width="94" height="51"/>
  <div><strong>Central Comercial</strong><small>Acesso privado à rede 26fit</small></div></header>
- <AuthView path={path}/>
+ <div id="26fit-auth-fields"><AuthView path={path}/></div>
+ <AuthPasswordVisibility/>
  {path==="sign-in"&&<p className="auth-invite-hint">Novos acessos são liberados por convite da gestão.</p>}
  </div></main>;
 }

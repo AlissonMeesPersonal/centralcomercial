@@ -368,3 +368,25 @@
  .churn-history-row{align-items:flex-start;flex-direction:column}
  .churn-history-row>span:last-child{padding-left:25px}
 }
+
+
+/* Controle acessível de exibição de senha em login e recuperação. */
+.auth-shell .auth-password-eye-wrap{position:relative;isolation:isolate}
+.auth-shell .auth-password-eye-wrap>input{padding-right:47px!important}
+.auth-shell .auth-password-eye-control{
+ position:absolute;top:50%;right:8px;transform:translateY(-50%);
+ display:flex;align-items:center;justify-content:center;
+ width:34px;height:34px;min-width:34px;min-height:34px;
+ border:1px solid transparent;border-radius:8px;
+ background:transparent;color:#c8d0d8;cursor:pointer;
+ transition:color .15s ease,background-color .15s ease;
+ z-index:2;
+}
+.auth-shell .auth-password-eye-control:hover{background:#404750;color:#fff}
+.auth-shell .auth-password-eye-control:focus-visible{outline:2px solid #f28c35;outline-offset:1px}
+.auth-shell .auth-password-eye-control[aria-pressed="true"]{color:#ffa65b}
+.auth-shell .auth-password-eye-control svg{pointer-events:none}
+/* O botão nativo existente no formulário de criação de conta também fica visível. */
+.auth-shell .relative>button.absolute[type="button"]{color:#c8d0d8!important;opacity:1!important}
+.auth-shell .relative>button.absolute[type="button"]:hover{color:#fff!important;background:#3a424a!important}
+.auth-shell .relative>button.absolute[type="button"]:focus-visible{outline:2px solid #f28c35}
