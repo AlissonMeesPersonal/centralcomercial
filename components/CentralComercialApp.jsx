@@ -50,6 +50,14 @@ const NAV=[
 const uid=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2);
 function day(n=0){const d=new Date();d.setDate(d.getDate()+n);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");}
 function dateFmt(d){if(!d)return "Sem prazo";const p=String(d).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:d;}
+// Abre o WhatsApp somente com telefone brasileiro válido (DDD + número).
+// Se o cadastro já trouxer +55, não duplicamos o código do país.
+function whatsAppLink(phone){
+ const digits=String(phone??"").replace(/\D/g,"");
+ const national=(digits.length===12||digits.length===13)&&digits.startsWith("55")?digits.slice(2):digits;
+ if(![10,11].includes(national.length)||!/^[1-9][0-9]/.test(national))return null;
+ return "https://wa.me/55"+national;
+}
 function currency(n){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:2}).format(Number(n)||0);}
 function percent(x){return x===null?"Não informado":new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1}).format(x)+"%";}
 function ratio(n,d){return n===null||n===undefined||d===null||d===undefined||Number(d)<=0||n===""?null:(Number(n)/Number(d))*100;}
@@ -375,7 +383,7 @@ export default function Home({accessRole}) {
           <p>{u.city||"Cidade não informada"} {u.state?"· "+u.state:""} {u.region?"· "+u.region:""}</p>
           {u.address&&<p className="unit-address">{u.address}</p>}
           {(u.leader||u.coordinator)&&<div className="directory-people">
-            <div><span>Líder da unidade</span><strong>{u.leader||"Não informado"}</strong>{u.leaderContact&&<a href={"tel:"+u.leaderContact.replace(/\D/g,"")} title="Ligar para o líder">{u.leaderContact}</a>}</div>
+            <div><span>Líder da unidade</span><strong>{u.leader||"Não informado"}</strong>{u.leaderContact&&(whatsAppLink(u.leaderContact)?<a className="directory-whatsapp" href={whatsAppLink(u.leaderContact)} target="_blank" rel="noopener noreferrer" title={"Conversar com "+(u.leader||"o líder")+" pelo WhatsApp"} aria-label={"Abrir WhatsApp do líder "+(u.leader||"da unidade")+", telefone "+u.leaderContact}><MessageSquare size={13}/>{u.leaderContact}</a>:<span className="directory-phone-invalid" title="Telefone sem DDD válido; confira o cadastro">{u.leaderContact}</span>)}</div>
             <div><span>Coordenação regional</span><strong>{u.coordinator||"Não informado"}</strong>{u.coordinatorContact&&<a href={"tel:"+u.coordinatorContact.replace(/\D/g,"")} title="Ligar para a coordenação">{u.coordinatorContact}</a>}</div>
           </div>}
           {(u.cnpj||u.cep||u.street||u.complement)&&<details className="directory-extra">
