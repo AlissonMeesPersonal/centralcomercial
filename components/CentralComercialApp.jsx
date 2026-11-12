@@ -165,6 +165,21 @@ export default function Home({accessRole}) {
    notify("Etapa alterada e registrada no Histórico.");
   }catch(err){notify(err.message||"Não foi possível registrar a etapa.");}
  }
+ async function syncTaskDeadline(item){
+  if(item.demo||!item.due)return item;
+  const response=await fetch("/api/calendar/deadline",{
+   method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({
+    taskId:item.id,title:item.title,unitId:item.unitId,due:item.due,
+    expectedRevision:item.deadlineRevision||0,
+    attendees:item.participantEmails||[],
+    status:item.archived?"cancelado":item.stage==="Concluído"?"concluido":"agendado"
+   })
+  });
+  let info={};try{info=await response.json();}catch{}
+  if(!response.ok)throw Error(info.error||"Falha ao sincronizar o prazo com a agenda.");
+  return {...item,deadlineRevision:info.revision};
+ }
  async function saveTask(){
   if(!editing?.title?.trim()){setError("Informe o título da demanda.");return;}
   if(editing.archived){setError("Restaure a demanda antes de editá-la.");return;}
@@ -182,12 +197,13 @@ export default function Home({accessRole}) {
    history:[...(editing.history||[]),{at:new Date().toISOString(),
     action:exists?"Demanda editada":"Demanda criada",by:"Usuário autenticado"}]};
   try{
+   const synced=await syncTaskDeadline(updated);
    await recordActivity({module:"demanda",
     action:editing.stage==="Concluído"?"completed":exists?"updated":"created",
     entityId:updated.id,title:updated.title,
     details:"Etapa: "+updated.stage+(updated.category?" • "+updated.category:""),
     unitId:updated.unitId});
-   setTasks(list=>exists?list.map(t=>t.id===editing.id?updated:t):[updated,...list]);
+   setTasks(list=>exists?list.map(t=>t.id===editing.id?synced:t):[synced,...list]);
    setDrawer(null);setError("");notify("Demanda salva e registrada no Histórico.");
   }catch(err){setError(err.message||"Falha ao registrar a demanda.");}
  }
@@ -197,10 +213,11 @@ export default function Home({accessRole}) {
   if(next&&!window.confirm("Arquivar esta demanda? Ela continuará disponível para consulta e restauração."))return;
   const updated={...editing,archived:next,updatedAt:new Date().toISOString()};
   try{
+   const synced=await syncTaskDeadline(updated);
    await recordActivity({module:"demanda",action:next?"archived":"restored",entityId:updated.id,
     title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId});
-   setTasks(list=>list.map(t=>t.id===updated.id?updated:t));
-   setEditing(updated);setDrawer(null);setError("");
+   setTasks(list=>list.map(t=>t.id===updated.id?synced:t));
+   setEditing(synced);setDrawer(null);setError("");
    notify(next?"Demanda arquivada.":"Demanda restaurada.");
   }catch(err){setError(err.message||"Falha ao atualizar a demanda.");}
  }
