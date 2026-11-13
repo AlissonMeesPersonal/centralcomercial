@@ -1036,3 +1036,13 @@
 .cc-email-lasttest.failed{background:#fff5ec;border:1px solid #edd7c4;color:#996c4b}
 .cc-email-lasttest strong{font-weight:780}
 .cc-email-help a{color:#7d5d43;text-decoration:underline;text-underline-offset:2px}
+
+
+/* Convites: reenvio por Resend na equipe */
+.team-pending-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex:none}
+.team-pending-actions .btn{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:9px 12px;white-space:nowrap}
+.team-pending-actions .btn:disabled{cursor:wait;opacity:.6}
+@media(max-width:650px){
+ .team-pending-row{flex-wrap:wrap}
+ .team-pending-actions{justify-content:space-between;width:100%}
+}
