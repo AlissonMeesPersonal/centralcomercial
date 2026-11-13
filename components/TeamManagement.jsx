@@ -11,7 +11,7 @@ export default function TeamManagement({accessRole,units=[]}){
  const [q,setQ]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [name,setName]=useState(""),[email,setEmail]=useState("");
  const [role,setRole]=useState(accessRole==="developer"?"admin":accessRole==="admin"?"gestor":"lider");
- const [inviteUrl,setInviteUrl]=useState(""),[saving,setSaving]=useState(false),[copied,setCopied]=useState(false),[resendingEmail,setResendingEmail]=useState("");
+ const [inviteUrl,setInviteUrl]=useState(""),[saving,setSaving]=useState(false),[copied,setCopied]=useState(false),[resendingEmail,setResendingEmail]=useState(""),[inviteFeedback,setInviteFeedback]=useState({});
  const [inviteUnitIds,setInviteUnitIds]=useState([]),[editingMember,setEditingMember]=useState(null),[editUnitIds,setEditUnitIds]=useState([]);
  const [assignError,setAssignError]=useState(""),[assignSaving,setAssignSaving]=useState(false);
  const [roleEditor,setRoleEditor]=useState(null),[roleDraft,setRoleDraft]=useState(""),[roleUnits,setRoleUnits]=useState([]);
@@ -41,7 +41,7 @@ export default function TeamManagement({accessRole,units=[]}){
  async function resendInvite(item){
   if(resendingEmail)return;
   if(!window.confirm("Enviar um novo convite para "+item.email+"? O link anterior será invalidado."))return;
-  setResendingEmail(item.email);setError("");setNotice("");setCopied(false);
+  setResendingEmail(item.email);setError("");setNotice("");setCopied(false);setInviteFeedback(prev=>({...prev,[item.email]:null}));
   try{
    const response=await fetch("/api/team",{
     method:"POST",credentials:"same-origin",
@@ -52,8 +52,9 @@ export default function TeamManagement({accessRole,units=[]}){
    if(!response.ok)throw Error(payload.error||"Falha ao reenviar o convite.");
    setInviteUrl(payload.url||"");
    setNotice(payload.message||"Convite atualizado.");
+   setInviteFeedback(prev=>({...prev,[item.email]:{ok:payload.emailStatus==="accepted",text:payload.message||"Convite atualizado."}}));
    await refresh();
-  }catch(e){setError(e.message||"Não foi possível reenviar o convite.");}
+  }catch(e){const msg=e.message||"Não foi possível reenviar o convite.";setError(msg);setInviteFeedback(prev=>({...prev,[item.email]:{ok:false,text:msg}}));}
   finally{setResendingEmail("");}
  }
  async function toggle(member){
@@ -137,7 +138,7 @@ export default function TeamManagement({accessRole,units=[]}){
    </section>
    <section className="panel">
     <div className="section-title"><div><h3>Convites pendentes</h3><p>Cadastros aguardando confirmação.</p></div><Clock3 size={19} color="#737d87"/></div>
-    {loading?<p className="team-secondary">Carregando convites…</p>:invites.length?invites.map((item,i)=><div className="team-pending-row" key={item.email+"-"+i}><div><strong>{item.name}</strong><small>{item.email}</small><small>{roleLabels[item.role]||item.role} · {item.unit_ids?.length||0} unidade(s) · até {formatDate(item.expires_at)}</small></div><div className="team-pending-actions"><span className="tag warning">Pendente</span><button type="button" className="btn secondary" disabled={!!resendingEmail||saving} onClick={()=>resendInvite(item)}><RefreshCcw size={14}/>{resendingEmail===item.email?"Enviando…":"Reenviar e-mail"}</button></div></div>):<p className="team-secondary">Nenhum convite aguardando cadastro.</p>}
+    {loading?<p className="team-secondary">Carregando convites…</p>:invites.length?invites.map((item,i)=><div className="team-pending-row" key={item.email+"-"+i}><div><strong>{item.name}</strong><small>{item.email}</small><small>{roleLabels[item.role]||item.role} · {item.unit_ids?.length||0} unidade(s) · até {formatDate(item.expires_at)}</small></div><div className="team-pending-actions"><span className="tag warning">Pendente</span><button type="button" className="btn secondary" title={"Gerar novo convite e enviar para "+item.email} aria-label={"Reenviar convite para "+item.email} disabled={!!resendingEmail||saving} onClick={()=>resendInvite(item)}><RefreshCcw size={14}/>{resendingEmail===item.email?"Reenviando…":"Reenviar convite"}</button>{inviteFeedback[item.email]&&<small className={"team-invite-feedback "+(inviteFeedback[item.email].ok?"ok":"issue")} role="status">{inviteFeedback[item.email].text}</small>}</div></div>):<p className="team-secondary">Nenhum convite aguardando cadastro.</p>}
    </section>
   </div>
   {error&&<p className="team-error" role="alert">{error}</p>}
