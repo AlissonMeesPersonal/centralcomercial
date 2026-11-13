@@ -435,17 +435,57 @@ export default function Home({accessRole}) {
  }
  function confirmRead(t){const c=campaigns.find(c=>c.id===t.campaignId);if(!c)return;setEditing(e=>({...e,ackVersion:c.version}));notify("Confirmação será gravada ao salvar a demanda.");}
  function exportData(){
-  const data=JSON.stringify({schema:"26fit.central.demo.v1",exportedAt:new Date().toISOString(),units:units.map(publicUnitForStorage),campaigns,tasks},null,2);
+  const data=JSON.stringify({
+   schema:"26fit.central.demo.v1",exportedAt:new Date().toISOString(),
+   source:"Neon compartilhado",
+   units:units.map(publicUnitForStorage),campaigns,tasks
+  },null,2);
   const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));
-  const a=document.createElement("a");a.href=url;a.download="26fit-central-comercial-demo-"+day()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify("Backup local exportado.");
+  const a=document.createElement("a");
+  a.href=url;a.download="26fit-central-comercial-backup-"+day()+".json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  notify("Backup dos registros compartilhados exportado.");
+ }
+ async function mergeBackup(data){
+  if(!Array.isArray(data.tasks)||!Array.isArray(data.campaigns))
+   throw Error("Arquivo sem campanhas ou demandas válidas.");
+  if(!["developer","admin"].includes(accessRole))
+   throw Error("Somente a administração pode migrar os dados comerciais.");
+  const result=await commercialRequest({
+   action:"merge_legacy",
+   tasks:data.tasks.filter(x=>x&&!x.demo),
+   campaigns:data.campaigns.filter(x=>x&&!x.demo)
+  });
+  await refreshShared(false);
+  return result;
  }
  async function importData(file){
-  if(!file)return;try{const data=JSON.parse(await file.text());if(data.schema!=="26fit.central.demo.v1"||!Array.isArray(data.units)||!Array.isArray(data.campaigns)||!Array.isArray(data.tasks))throw Error("Formato não reconhecido.");
-   const merge=(a,b)=>{const m=new Map(a.map(x=>[x.id,x]));for(const x of b){if(!x||typeof x.id!=="string")continue;const previous=m.get(x.id);if(!previous||String(x.updatedAt||"")>String(previous.updatedAt||""))m.set(x.id,x);}return [...m.values()];};
-   await recordActivity({module:"configuracoes",action:"backup_imported",entityId:"backup-"+uid(),
-    title:"Backup local importado",details:data.tasks.length+" demandas e "+data.campaigns.length+" campanhas na mesclagem"});
-   setUnits(a=>merge(a,data.units));setCampaigns(a=>merge(a,data.campaigns));setTasks(a=>merge(a,data.tasks));notify("Backup mesclado e registrado no Histórico.");}
-  catch(err){notify("Falha na importação: "+err.message);}
+  if(!file)return;
+  if(file.size>3*1024*1024){notify("Backup excede 3 MB.");return;}
+  try{
+   const data=JSON.parse(await file.text());
+   if(!["26fit.central.demo.v1","26fit.central.shared.v2"].includes(data.schema))
+    throw Error("Formato de backup não reconhecido.");
+   if(!window.confirm("Mesclar os registros deste backup no Neon? Registros já existentes serão preservados, sem sobrescrita."))
+    return;
+   const result=await mergeBackup(data);
+   notify("Mesclagem concluída: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
+   void recordActivity({
+    module:"configuracoes",action:"backup_imported",entityId:"backup-"+uid(),
+    title:"Backup comercial mesclado no Neon",
+    details:result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas"
+   }).catch(()=>{});
+  }catch(err){notify("Importação não realizada: "+err.message);}
+ }
+ async function importLegacyBrowser(){
+  try{
+   const raw=localStorage.getItem("26fit-central-comercial-demo-v1");
+   if(!raw)throw Error("Nenhum backup antigo encontrado neste navegador.");
+   const data=JSON.parse(raw);
+   if(!window.confirm("Importar registros antigos deste navegador para o Neon? Nenhum dado existente será substituído."))return;
+   const result=await mergeBackup(data);
+   notify("Migração local: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
+  }catch(err){notify("Importação local não realizada: "+err.message);}
  }
  async function clearDemo(){
   if(!window.confirm("Remover registros de demonstração? Os demais registros deste navegador serão preservados."))return;
@@ -462,7 +502,13 @@ export default function Home({accessRole}) {
  const activeCampaign=campaigns.find(c=>c.id===detailCamp);
  function campaignTotal(c){const list=tasks.filter(t=>t.campaignId===c.id&&t.indicator===c.indicator&&t.actual!==null&&t.actual!==""&&t.actual!==undefined);return {n:list.length,sum:list.reduce((n,t)=>n+Number(t.actual),0)};}
  function localUnits(){return units.filter(u=>u.demo).length;}
- if(!ready)return <main className="boot">Carregando Central Comercial…</main>;
+ if(!ready)return <main className="boot">{syncState.status==="error"?
+  <div className="cc-sync-boot-error">
+   <CircleAlert size={26}/>
+   <h2>Não foi possível conectar ao Neon</h2>
+   <p>{syncState.error}. Para proteger os dados comerciais, o sistema não permite gravações locais.</p>
+   <button className="btn" onClick={()=>window.location.reload()}>Tentar novamente</button>
+  </div>:"Carregando os dados compartilhados da Central Comercial…"}</main>;
  return <div className="shell">
   <aside className={"sidebar "+(mobile?"mobile-open":"")}>
    <div className="brand"><div className="brand-logo"><img src="/logo_v2.png" alt="26fit" width="100" height="54"/></div><div className="brand-copy"><strong>Central</strong><small>Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
@@ -472,7 +518,7 @@ export default function Home({accessRole}) {
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
   <div className="workspace">
-   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><div className="avatar small">D</div></div></header>
+   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><div className="avatar small">D</div></div></header>
    <main className="main">
    {nav==="Visão geral"&&<>
     <div className="heading-row"><div><div className="eyebrow">PAINEL DE CONTROLE <span className="dot">·</span> {new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"})}</div><h1>Visão geral</h1><p>Organize a estratégia da rede e acompanhe a execução de cada unidade.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div>
@@ -595,11 +641,11 @@ export default function Home({accessRole}) {
    />}
    {nav==="Histórico"&&<HistoryDashboard units={units}/>}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}
-   {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>As demandas, campanhas e aprendizados ainda ficam salvos neste navegador (localStorage). O cadastro de unidades, os usuários e os indicadores de churn já utilizam o Neon compartilhado. Não utilize dados comerciais sensíveis nos módulos locais até concluirmos a migração para o banco.</Notice>{["developer","admin"].includes(accessRole)&&<EmailSettingsPanel/>}<div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup local</h3><p>Exportação e importação dos dados deste navegador</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label></div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
+   {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>Demandas, campanhas, aprendizados, calendário, unidades e equipe utilizam o Neon compartilhado. O arquivo antigo do navegador foi preservado apenas para migração ou recuperação, e as edições simultâneas possuem controle de revisão.</Notice>{["developer","admin"].includes(accessRole)&&<EmailSettingsPanel/>}<div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup e mesclagem no Neon</h3><p>Exportação da base compartilhada e importação administrativa sem sobrescrever registros existentes</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button>{["developer","admin"].includes(accessRole)&&<><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label><Button kind="secondary" onClick={importLegacyBrowser}><RotateCcw size={16}/> Migrar dados deste navegador</Button></>}</div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
    </main>
   </div>
   {toast&&<div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
-  {drawer==="task"&&editing&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer"><div className="drawer-head"><div><span className="eyebrow">DEMANDA • {editing.demo?"DEMONSTRAÇÃO":"LOCAL"}</span><h2>{tasks.some(t=>t.id===editing.id)?"Editar demanda":"Nova demanda"}</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content">
+  {drawer==="task"&&editing&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer"><div className="drawer-head"><div><span className="eyebrow">DEMANDA • {editing.demo?"DEMONSTRAÇÃO":"NEON COMPARTILHADO"}</span><h2>{tasks.some(t=>t.id===editing.id)?"Editar demanda":"Nova demanda"}</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content">
    {error&&<div className="validation"><CircleAlert size={17}/>{error}</div>}
    {editing.campaignId&&(()=>{const c=campaigns.find(c=>c.id===editing.campaignId);return c?<div className="version"><div><strong>Campanha: {c.title}</strong><small>Orientações centrais · versão {c.version}</small><p>{c.description}</p></div>{editing.ackVersion<c.version?<Button kind="secondary" onClick={()=>confirmRead(editing)}><Check size={15}/> Confirmar leitura</Button>:<Tag tone="success">Leitura confirmada</Tag>}</div>:null;})()}
    <div className="form-grid"><Field label="Título *"><input value={editing.title} onChange={e=>setEditing(d=>({...d,title:e.target.value}))}/></Field><Field label="Objetivo"><textarea rows={2} value={editing.objective} onChange={e=>setEditing(d=>({...d,objective:e.target.value}))}/></Field><div className="form-pair"><Field label="Unidade"><select value={editing.unitId} onChange={e=>setEditing(d=>({...d,unitId:e.target.value}))}>{units.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Field><Field label="Categoria"><select value={editing.category} onChange={e=>setEditing(d=>({...d,category:e.target.value,checklist:checklist(e.target.value)}))}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></Field></div><div className="form-pair"><Field label="Responsável"><input value={editing.owner} onChange={e=>setEditing(d=>({...d,owner:e.target.value}))}/></Field><Field label="Pessoa de apoio"><input value={editing.support||""} onChange={e=>setEditing(d=>({...d,support:e.target.value}))}/></Field></div><div className="form-pair"><Field label="Etapa"><select value={editing.stage} onChange={e=>setEditing(d=>({...d,stage:e.target.value}))}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="Prioridade"><select value={editing.priority} onChange={e=>setEditing(d=>({...d,priority:e.target.value}))}>{PRIORITIES.map(s=><option key={s}>{s}</option>)}</select></Field></div><div className="form-pair"><Field label="Prazo"><DateCalendarInput type="date" ariaLabel="Prazo da demanda" value={editing.due||""} onChange={e=>setEditing(d=>({...d,due:e.target.value}))}/></Field><Field label="Colaboradores (observações)"><input value={editing.collaborators||""} onChange={e=>setEditing(d=>({...d,collaborators:e.target.value}))}/></Field></div><TeamAttendeePicker value={editing.participantEmails||[]} onChange={participantEmails=>setEditing(d=>({...d,participantEmails}))} label="Participantes que receberão lembretes do prazo"/><div className="form-pair"><Field label="Público-alvo"><input value={editing.targetAudience||""} onChange={e=>setEditing(d=>({...d,targetAudience:e.target.value}))}/></Field><Field label="Oferta"><input value={editing.offer||""} onChange={e=>setEditing(d=>({...d,offer:e.target.value}))}/></Field></div><div className="form-pair"><Field label="Canais"><input value={editing.channels||""} onChange={e=>setEditing(d=>({...d,channels:e.target.value}))}/></Field><Field label="Dependências"><input value={editing.dependencies||""} onChange={e=>setEditing(d=>({...d,dependencies:e.target.value}))}/></Field></div></div>
