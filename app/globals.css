@@ -1046,3 +1046,11 @@
  .team-pending-row{flex-wrap:wrap}
  .team-pending-actions{justify-content:space-between;width:100%}
 }
+
+
+/* Feedback de reenvio diretamente ao lado de cada convite pendente */
+.team-pending-actions{flex-wrap:wrap;max-width:min(100%,430px)}
+.team-pending-actions .team-invite-feedback{display:block;flex-basis:100%;font-size:10px;line-height:1.5;text-align:right;font-weight:600}
+.team-invite-feedback.ok{color:#27825f}
+.team-invite-feedback.issue{color:#aa6249}
+@media(max-width:650px){.team-pending-actions .team-invite-feedback{text-align:left}}
