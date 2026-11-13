@@ -11,7 +11,7 @@ export default function TeamManagement({accessRole,units=[]}){
  const [q,setQ]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [name,setName]=useState(""),[email,setEmail]=useState("");
  const [role,setRole]=useState(accessRole==="developer"?"admin":accessRole==="admin"?"gestor":"lider");
- const [inviteUrl,setInviteUrl]=useState(""),[saving,setSaving]=useState(false),[copied,setCopied]=useState(false);
+ const [inviteUrl,setInviteUrl]=useState(""),[saving,setSaving]=useState(false),[copied,setCopied]=useState(false),[resendingEmail,setResendingEmail]=useState("");
  const [inviteUnitIds,setInviteUnitIds]=useState([]),[editingMember,setEditingMember]=useState(null),[editUnitIds,setEditUnitIds]=useState([]);
  const [assignError,setAssignError]=useState(""),[assignSaving,setAssignSaving]=useState(false);
  const [roleEditor,setRoleEditor]=useState(null),[roleDraft,setRoleDraft]=useState(""),[roleUnits,setRoleUnits]=useState([]);
@@ -33,10 +33,28 @@ export default function TeamManagement({accessRole,units=[]}){
     headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,role,unitIds:inviteUnitIds})});
    const payload=await response.json();
    if(!response.ok)throw Error(payload.error||"Falha ao criar convite.");
-   setInviteUrl(payload.url);setNotice("Convite criado. Envie o link à pessoa autorizada.");
+   setInviteUrl(payload.url);setNotice(payload.message||"Convite criado. Compartilhe o link com a pessoa autorizada.");
    setName("");setEmail("");setInviteUnitIds([]);await refresh();
   }catch(e){setError(e.message||"Falha ao criar convite.");}
   finally{setSaving(false);}
+ }
+ async function resendInvite(item){
+  if(resendingEmail)return;
+  if(!window.confirm("Enviar um novo convite para "+item.email+"? O link anterior será invalidado."))return;
+  setResendingEmail(item.email);setError("");setNotice("");setCopied(false);
+  try{
+   const response=await fetch("/api/team",{
+    method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"resend_invitation",email:item.email})
+   });
+   const payload=await response.json();
+   if(!response.ok)throw Error(payload.error||"Falha ao reenviar o convite.");
+   setInviteUrl(payload.url||"");
+   setNotice(payload.message||"Convite atualizado.");
+   await refresh();
+  }catch(e){setError(e.message||"Não foi possível reenviar o convite.");}
+  finally{setResendingEmail("");}
  }
  async function toggle(member){
   const next=member.status==="active"?"suspended":"active";
@@ -113,13 +131,13 @@ export default function TeamManagement({accessRole,units=[]}){
      <label className="field"><span>E-mail de acesso</span><input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="pessoa@empresa.com.br"/></label>
      <label className="field"><span>Nível de permissão</span><select value={role} onChange={e=>{setRole(e.target.value);setInviteUnitIds([]);}}>{roles.map(value=><option value={value} key={value}>{roleLabels[value]}</option>)}</select></label>
      {["lider","colaborador"].includes(role)&&<UnitPicker units={units} selected={inviteUnitIds} onChange={setInviteUnitIds} label="Unidades de atuação *"/>}
-     <button className="btn" type="submit" disabled={saving}>{saving?<RefreshCcw size={16}/>:<UserPlus size={16}/>} {saving?"Gerando convite…":"Gerar convite"}</button>
+     <button className="btn" type="submit" disabled={saving}>{saving?<RefreshCcw size={16}/>:<UserPlus size={16}/>} {saving?"Gerando convite…":"Convidar por e-mail"}</button>
     </form>
-    {inviteUrl&&<div className="team-invite-link"><label>Link de acesso gerado</label><input readOnly value={inviteUrl} aria-label="Link do convite"/><button className="btn secondary" onClick={async()=>{try{await navigator.clipboard.writeText(inviteUrl);setCopied(true);}catch{setNotice("Selecione e copie o link no campo.");}}}><Copy size={15}/>{copied?"Copiado!":"Copiar link"}</button><small>Envie por e-mail ou mensagem. Nenhuma senha é compartilhada.</small></div>}
+    {inviteUrl&&<div className="team-invite-link"><label>Link de acesso gerado</label><input readOnly value={inviteUrl} aria-label="Link do convite"/><button className="btn secondary" onClick={async()=>{try{await navigator.clipboard.writeText(inviteUrl);setCopied(true);}catch{setNotice("Selecione e copie o link no campo.");}}}><Copy size={15}/>{copied?"Copiado!":"Copiar link"}</button><small>Este link é individual. Se o serviço de e-mail não confirmar o envio, copie e compartilhe por outro canal. Nenhuma senha é compartilhada.</small></div>}
    </section>
    <section className="panel">
     <div className="section-title"><div><h3>Convites pendentes</h3><p>Cadastros aguardando confirmação.</p></div><Clock3 size={19} color="#737d87"/></div>
-    {loading?<p className="team-secondary">Carregando convites…</p>:invites.length?invites.map((item,i)=><div className="team-pending-row" key={item.email+"-"+i}><div><strong>{item.name}</strong><small>{item.email}</small><small>{roleLabels[item.role]||item.role} · {item.unit_ids?.length||0} unidade(s) · até {formatDate(item.expires_at)}</small></div><span className="tag warning">Pendente</span></div>):<p className="team-secondary">Nenhum convite aguardando cadastro.</p>}
+    {loading?<p className="team-secondary">Carregando convites…</p>:invites.length?invites.map((item,i)=><div className="team-pending-row" key={item.email+"-"+i}><div><strong>{item.name}</strong><small>{item.email}</small><small>{roleLabels[item.role]||item.role} · {item.unit_ids?.length||0} unidade(s) · até {formatDate(item.expires_at)}</small></div><div className="team-pending-actions"><span className="tag warning">Pendente</span><button type="button" className="btn secondary" disabled={!!resendingEmail||saving} onClick={()=>resendInvite(item)}><RefreshCcw size={14}/>{resendingEmail===item.email?"Enviando…":"Reenviar e-mail"}</button></div></div>):<p className="team-secondary">Nenhum convite aguardando cadastro.</p>}
    </section>
   </div>
   {error&&<p className="team-error" role="alert">{error}</p>}
