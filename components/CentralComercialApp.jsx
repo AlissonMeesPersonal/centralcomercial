@@ -96,6 +96,7 @@ export default function Home({accessRole}) {
  const initialRemoteRef=useRef(false);
  const [syncState,setSyncState]=useState({status:"loading",error:"",lastAt:null});
  const [legacyCounts,setLegacyCounts]=useState({tasks:0,campaigns:0});
+ const [legacyIssue,setLegacyIssue]=useState("");
  const [nav,setNav]=useState("Visão geral"),[view,setView]=useState("Kanban"),[filter,setFilter]=useState({q:"",unit:"",priority:"",stage:"",campaign:"",category:"",owner:"",period:""});
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
@@ -139,7 +140,6 @@ export default function Home({accessRole}) {
      else setUnits(seedData().units);
      const tasks=(Array.isArray(old?.tasks)?old.tasks:[]).filter(x=>x&&!x.demo&&x.title?.trim());
      const campaigns=(Array.isArray(old?.campaigns)?old.campaigns:[]).filter(x=>x&&!x.demo&&x.title?.trim());
-     setLegacyCounts({tasks:tasks.length,campaigns:campaigns.length});
      if(["developer","admin"].includes(accessRole)&&
        Number(payload.counts?.tasks||0)===0&&Number(payload.counts?.campaigns||0)===0&&
        (tasks.length||campaigns.length)){
@@ -149,8 +149,21 @@ export default function Home({accessRole}) {
        if(!post.ok)throw Error("Falha ao consultar dados após a migração.");
        payload=await post.json();
       }catch(e){
-       setSyncState({status:"warning",error:"Dados antigos preservados neste navegador, mas a importação automática não foi concluída: "+e.message,lastAt:null});
+       setLegacyIssue("Importação automática não concluída: "+e.message+". Você pode importar novamente na aba Configurações.");
       }
+     }
+     const remoteTaskIds=new Set((payload.tasks||[]).map(t=>t.id));
+     const remoteCampaignIds=new Set((payload.campaigns||[]).map(c=>c.id));
+     const missingTasks=tasks.filter(t=>!remoteTaskIds.has(t.id)).length;
+     const missingCampaigns=campaigns.filter(c=>!remoteCampaignIds.has(c.id)).length;
+     setLegacyCounts({tasks:missingTasks,campaigns:missingCampaigns});
+     if(missingTasks||missingCampaigns){
+      setLegacyIssue(previous=>previous||(
+       missingTasks+" demanda(s) e "+missingCampaigns+" campanha(s) antigas ainda estão neste navegador, mas não aparecem na base compartilhada. "+
+       (["developer","admin"].includes(accessRole)
+         ?"Use Configurações → Migrar dados deste navegador."
+         :"Exporte um backup JSON e entregue ao administrador para mesclagem no Neon.")
+      ));
      }
     }catch{
      setUnits(seedData().units);
@@ -457,6 +470,8 @@ export default function Home({accessRole}) {
    campaigns:data.campaigns.filter(x=>x&&!x.demo)
   });
   await refreshShared(false);
+  setLegacyIssue("");
+  setLegacyCounts({tasks:0,campaigns:0});
   return result;
  }
  async function importData(file){
@@ -520,6 +535,7 @@ export default function Home({accessRole}) {
   <div className="workspace">
    <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><div className="avatar small">D</div></div></header>
    <main className="main">
+   {legacyIssue&&<div className="cc-sync-warning"><AlertTriangle size={17}/><span>{legacyIssue}</span></div>}
    {nav==="Visão geral"&&<>
     <div className="heading-row"><div><div className="eyebrow">PAINEL DE CONTROLE <span className="dot">·</span> {new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"})}</div><h1>Visão geral</h1><p>Organize a estratégia da rede e acompanhe a execução de cada unidade.</p></div><Button onClick={newTask}><Plus size={17}/> Nova demanda</Button></div>
     <div className="hero"><div><div className="hero-kicker"><Sparkles size={14}/> CENTRAL DE PLANEJAMENTO</div><h2>Uma rede alinhada.<br/><span>Resultados em movimento.</span></h2><p>Planeje campanhas, distribua entregas e transforme aprendizados em novas ações.</p><button onClick={()=>moveNav("Campanhas")}>Ver campanhas <ArrowUpRight size={16}/></button></div><div className="hero-decoration"><span className="ring one"/><span className="ring two"/><span className="ring three"/><div className="hero-card"><ChartColumnIncreasing size={22}/><div><b>Planejamento → Execução</b><small>Visão completa da jornada</small></div><CheckCircle2 size={17}/></div></div></div>
