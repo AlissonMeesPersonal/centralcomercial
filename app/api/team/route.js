@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { getAccess,canInviteRole } from "../../../lib/access";
 import {database} from "../../../lib/db";
 import {hashToken,normalizeEmail} from "../../../lib/invitations";
+import {sendCentralTeamInvite} from "../../../lib/emails/team-invite";
 export const runtime="nodejs";export const dynamic="force-dynamic";export const revalidate=0;
 const headers={"Cache-Control":"private, no-store, max-age=0","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const fail=(error,status)=>Response.json({error},{status,headers});
@@ -33,6 +34,46 @@ export async function POST(request) {
   const {access,error}=await authorise();if(error)return error;
   if(Number(request.headers.get("content-length")||0)>5000)return fail("Dados excedem o limite.",413);
   let data;try{data=await request.json();}catch{return fail("Solicitação inválida.",400);}
+  if(data.action==="resend_invitation"){
+   const email=normalizeEmail(data.email);
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>255)
+    return fail("Informe um e-mail válido.",422);
+   if(!process.env.RESEND_API_KEY||!process.env.AUTH_EMAIL_FROM)
+    return fail("O remetente do Resend ainda não está configurado.",503);
+   const sql=database();
+   const pending=await sql.query(
+    "SELECT name,role,unit_ids,created_at FROM cc_team_invitations WHERE lower(email)=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() ORDER BY created_at DESC LIMIT 1",
+    [email]
+   );
+   if(!pending.length)return fail("Não existe convite ativo para este endereço. Gere um novo convite.",404);
+   if(!canInviteRole(access.role,pending[0].role))
+    return fail("Seu perfil não pode reenviar convites para este cargo.",403);
+   if(new Date(pending[0].created_at).getTime()>Date.now()-120000)
+    return fail("Um convite acabou de ser gerado. Aguarde dois minutos antes de reenviar.",429);
+   const member=await sql.query("SELECT status FROM cc_team_members WHERE lower(email)=$1 LIMIT 1",[email]);
+   if(member[0]?.status==="active")return fail("Este usuário já possui acesso ativo e não precisa de novo convite.",409);
+   const token=randomBytes(32).toString("base64url"),tokenHash=hashToken(token);
+   // Revoga o link antigo e gera um novo em uma única instrução.
+   const renewed=await sql.query(
+    "WITH previous AS (UPDATE cc_team_invitations SET revoked_at=now() WHERE lower(email)=$1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now() RETURNING name,role,unit_ids), added AS (INSERT INTO cc_team_invitations(token_hash,email,name,role,invited_by,expires_at,unit_ids) SELECT $2,$1,name,role,$3,now()+interval '7 days',unit_ids FROM previous ORDER BY name LIMIT 1 RETURNING email,name,role) SELECT * FROM added",
+    [email,tokenHash,access.email]
+   );
+   if(!renewed.length)return fail("O convite foi alterado em outra sessão. Atualize a lista.",409);
+   const url="https://centralcomercial-eta.vercel.app/convite/"+token;
+   await sql.query(
+    "INSERT INTO cc_team_audit(actor_email,target_email,action,new_value) VALUES($1,$2,'invite',$3::jsonb)",
+    [access.email,email,JSON.stringify({action:"resend",role:renewed[0].role})]
+   );
+   const delivery=await sendCentralTeamInvite({
+    email,name:renewed[0].name,role:renewed[0].role,url,tokenHash
+   });
+   return Response.json({
+    url,email,emailStatus:delivery.status,
+    message:delivery.status==="accepted"
+      ?"Convite enviado ao Resend. O destinatário deve conferir a caixa de entrada e o spam."
+      :"O convite foi renovado, mas o Resend não confirmou o envio. Copie o novo link e envie manualmente."
+   },{status:200,headers});
+  }
   const email=normalizeEmail(data.email),name=String(data.name||"").trim(),role=String(data.role||"").trim();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>255)return fail("Informe um e-mail válido.",422);
   if(name.length<2||name.length>120)return fail("Informe o nome do colaborador (2 a 120 caracteres).",422);
@@ -59,7 +100,13 @@ export async function POST(request) {
    [access.email,email,JSON.stringify({role,name,unitIds})]
   );
   const url="https://centralcomercial-eta.vercel.app/convite/"+token;
-  return Response.json({url,email,name,role,message:"Convite criado. Compartilhe o link com a pessoa autorizada."},{status:201,headers});
+  const delivery=await sendCentralTeamInvite({email,name,role,url,tokenHash});
+  const message=delivery.status==="accepted"
+   ?"Convite criado e aceito pelo Resend para envio. Confira se o destinatário recebeu."
+   :delivery.status==="not_configured"
+   ?"Convite criado. O e-mail automático não está configurado; compartilhe o link manualmente."
+   :"Convite criado, mas o Resend não confirmou o envio. Compartilhe o link manualmente.";
+  return Response.json({url,email,name,role,emailStatus:delivery.status,message},{status:201,headers});
  }catch{return fail("Não foi possível gerar o convite. Tente novamente.",500);}
 }
 export async function PATCH(request){
