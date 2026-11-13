@@ -260,56 +260,37 @@ export default function Home({accessRole}) {
   const current=tasksRef.current.find(t=>t.id===id);
   if(!current||current.stage===stage)return;
   if(current.archived){notify("Restaure a demanda antes de alterar sua etapa.");return;}
-  // A conclusão ainda precisa validar a checklist e os aprendizados.
   if(stage==="Concluído"){openTask({...current,stage});return;}
-
-  const transitionId=uid();
-  const updatedAt=new Date().toISOString();
-  const historyEntry={
-   id:transitionId,at:updatedAt,
-   action:"Etapa alterada para "+stage,by:"Usuário autenticado"
+  if(accessRole==="colaborador"){notify("Colaboradores concluem suas atividades, não movimentam as etapas.");return;}
+  const stamp=new Date().toISOString();
+  const updated={
+   ...current,stage,updatedAt:stamp,
+   history:[...(current.history||[]),{id:uid(),at:stamp,action:"Etapa alterada para "+stage,by:"Usuário autenticado"}]
   };
-  const optimistic={...current,stage,updatedAt,history:[...(current.history||[]),historyEntry]};
-
-  // PRIMEIRO: atualiza a coluna visivelmente, na mesma interação de drop.
-  // O Histórico é gravado depois. O calendário não precisa de sincronização:
-  // nas mudanças entre etapas abertas o título, prazo e status do evento
-  // permanecem iguais; concluir/arquivar já passam pelos fluxos próprios.
-  const updatedList=tasksRef.current.map(t=>t.id===id?optimistic:t);
-  tasksRef.current=updatedList;
-  setTasks(updatedList);
-
-  // Requisições do mesmo cartão ficam em ordem, mas NÃO bloqueiam novos
-  // arrastos: cada movimento tem resposta visual imediata.
-  const previousWrite=stageWritesRef.current.get(id)||Promise.resolve();
-  const write=previousWrite.catch(()=>{}).then(()=>recordActivity({
-   module:"demanda",action:"stage_changed",entityId:current.id,
-   title:current.title||"Demanda",
-   details:(current.stage||"Sem etapa")+" → "+stage,unitId:current.unitId
-  }));
+  const displayed=tasksRef.current.map(t=>t.id===id?updated:t);
+  tasksRef.current=displayed;
+  setTasks(displayed);
+  const previous=stageWritesRef.current.get(id)||Promise.resolve();
+  const write=previous.catch(()=>{}).then(async()=>{
+   const latestRevision=serverRevisionsRef.current.get(id)??current.syncRevision??0;
+   const response=await commercialRequest({action:"change_stage",id,stage,expectedRevision:latestRevision});
+   const revision=response.item.syncRevision;
+   serverRevisionsRef.current.set(id,revision);
+   const revised=tasksRef.current.map(t=>t.id===id?{...t,syncRevision:revision}:t);
+   tasksRef.current=revised;
+   setTasks(revised);
+   void recordActivity({
+    module:"demanda",action:"stage_changed",entityId:id,title:current.title||"Demanda",
+    details:current.stage+" → "+stage,unitId:current.unitId
+   }).catch(()=>{});
+  });
   stageWritesRef.current.set(id,write);
   try{
    await write;
-   if(stageWritesRef.current.get(id)===write)notify("Etapa atualizada e registrada no Histórico.");
+   if(stageWritesRef.current.get(id)===write)notify("Etapa sincronizada com toda a equipe.");
   }catch(err){
-   const latest=tasksRef.current.find(t=>t.id===id);
-   if(latest){
-    const isCurrent=latest.history?.some(h=>h.id===transitionId);
-    if(isCurrent){
-     const newest=latest.history?.at(-1)?.id===transitionId;
-     const reverted=tasksRef.current.map(t=>{
-      if(t.id!==id)return t;
-      return {
-       ...t,
-       ...(newest&&t.stage===stage?{stage:current.stage,updatedAt:current.updatedAt}:{}),
-       history:(t.history||[]).filter(h=>h.id!==transitionId)
-      };
-     });
-     tasksRef.current=reverted;
-     setTasks(reverted);
-    }
-   }
-   notify("Falha ao registrar no Histórico. A mudança não confirmada foi revertida quando possível: "+(err.message||"verifique a conexão."));
+   await refreshShared(false);
+   notify(err.message||"Não foi possível atualizar a etapa. Consulte a versão compartilhada.");
   }finally{
    if(stageWritesRef.current.get(id)===write)stageWritesRef.current.delete(id);
   }
@@ -342,20 +323,34 @@ export default function Home({accessRole}) {
    }
   }
   const exists=tasks.some(t=>t.id===editing.id);
+  const original=tasks.find(t=>t.id===editing.id);
   const updated={...editing,updatedAt:new Date().toISOString(),
    history:[...(editing.history||[]),{at:new Date().toISOString(),
     action:exists?"Demanda editada":"Demanda criada",by:"Usuário autenticado"}]};
   try{
-   const synced=await syncTaskDeadline(updated);
-   await recordActivity({module:"demanda",
-    action:editing.stage==="Concluído"?"completed":exists?"updated":"created",
+   const changedDeadline=!original||original.due!==updated.due||
+    original.title!==updated.title||original.unitId!==updated.unitId||
+    original.archived!==updated.archived||original.stage!==updated.stage||
+    JSON.stringify(original.participantEmails||[])!==JSON.stringify(updated.participantEmails||[]);
+   const synced=changedDeadline?await syncTaskDeadline(updated):updated;
+   const response=await commercialRequest({
+    action:"save_task",item:synced,expectedRevision:editing.syncRevision||0
+   });
+   serverRevisionsRef.current.set(updated.id,response.item.syncRevision);
+   setTasks(list=>exists?list.map(t=>t.id===editing.id?response.item:t):[response.item,...list]);
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
+   setDrawer(null);setError("");
+   notify("Demanda salva no Neon e compartilhada com a equipe.");
+   void recordActivity({
+    module:"demanda",action:updated.stage==="Concluído"?"completed":exists?"updated":"created",
     entityId:updated.id,title:updated.title,
     details:"Etapa: "+updated.stage+(updated.category?" • "+updated.category:""),
-    unitId:updated.unitId});
-   setTasks(list=>exists?list.map(t=>t.id===editing.id?synced:t):[synced,...list]);
-   window.dispatchEvent(new Event("26fit:calendar-updated"));
-   setDrawer(null);setError("");notify("Demanda salva e registrada no Histórico.");
-  }catch(err){setError(err.message||"Falha ao registrar a demanda.");}
+    unitId:updated.unitId
+   }).catch(()=>{});
+  }catch(err){
+   setError(err.message||"Falha ao gravar a demanda compartilhada.");
+   if(err.status===409)void refreshShared(false);
+  }
  }
  async function toggleTaskArchived(){
   if(!editing||!tasks.some(t=>t.id===editing.id))return;
@@ -364,13 +359,22 @@ export default function Home({accessRole}) {
   const updated={...editing,archived:next,updatedAt:new Date().toISOString()};
   try{
    const synced=await syncTaskDeadline(updated);
-   await recordActivity({module:"demanda",action:next?"archived":"restored",entityId:updated.id,
-    title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId});
-   setTasks(list=>list.map(t=>t.id===updated.id?synced:t));
-   setEditing(synced);setDrawer(null);setError("");
+   const result=await commercialRequest({
+    action:"save_task",item:synced,expectedRevision:editing.syncRevision||0
+   });
+   serverRevisionsRef.current.set(updated.id,result.item.syncRevision);
+   setTasks(list=>list.map(t=>t.id===updated.id?result.item:t));
+   setEditing(result.item);setDrawer(null);setError("");
    window.dispatchEvent(new Event("26fit:calendar-updated"));
-   notify(next?"Demanda arquivada.":"Demanda restaurada.");
-  }catch(err){setError(err.message||"Falha ao atualizar a demanda.");}
+   notify(next?"Demanda arquivada no Neon.":"Demanda restaurada no Neon.");
+   void recordActivity({
+    module:"demanda",action:next?"archived":"restored",entityId:updated.id,
+    title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId
+   }).catch(()=>{});
+  }catch(err){
+   setError(err.message||"Falha ao arquivar a demanda.");
+   if(err.status===409)void refreshShared(false);
+  }
  }
  function newCampaign(){setError("");setCampaignDraft({id:uid(),title:"",description:"",indicator:"Matrículas",goal:null,version:1,units:[],archived:false,demo:false,createdAt:new Date().toISOString()});setDrawer("campaign");}
  function editCampaign(c){setError("");setCampaignDraft(JSON.parse(JSON.stringify(c)));setDrawer("campaign");}
@@ -380,21 +384,32 @@ export default function Home({accessRole}) {
   if(campaignDraft.archived){setError("Restaure a campanha antes de editá-la.");return;}
   const old=campaigns.find(c=>c.id===campaignDraft.id);
   const changed=old&&old.description!==campaignDraft.description;
-  const merged={...campaignDraft,version:changed?(old.version+1):campaignDraft.version};
-  const existing=new Set(tasks.filter(t=>t.campaignId===merged.id).map(t=>t.unitId));
-  const newItems=(merged.units||[]).filter(u=>!existing.has(u)).map(u=>task({
-   title:merged.title,objective:merged.description,unitId:u,campaignId:merged.id,
-   category:"Campanha geral",stage:"Planejamento",indicator:merged.indicator,goal:null,ackVersion:0
-  }));
+  const merged={
+   ...campaignDraft,
+   version:changed?(old.version+1):campaignDraft.version,
+   updatedAt:new Date().toISOString()
+  };
   try{
-   await recordActivity({module:"campanha",action:old?"updated":"created",
-    entityId:merged.id,title:merged.title,
-    details:(merged.units||[]).length+" unidade(s) • "+newItems.length+" nova(s) entrega(s) • versão "+merged.version});
-   setCampaigns(list=>old?list.map(c=>c.id===merged.id?merged:c):[merged,...list]);
-   if(newItems.length)setTasks(list=>[...newItems,...list]);
+   const saved=await commercialRequest({
+    action:"save_campaign",item:merged,expectedRevision:old?.syncRevision||0
+   });
+   setCampaigns(list=>old?list.map(c=>c.id===merged.id?saved.item:c):[saved.item,...list]);
+   if(saved.createdTasks?.length)setTasks(list=>{
+    const ids=new Set(list.map(t=>t.id));
+    return [...saved.createdTasks.filter(t=>!ids.has(t.id)),...list];
+   });
    setDrawer(null);setError("");
-   notify(changed?"Versão central atualizada; leitura pendente nas entregas.":"Campanha salva no Histórico.");
-  }catch(err){setError(err.message||"Falha ao registrar a campanha.");}
+   notify(changed?"Orientações atualizadas e compartilhadas.":"Campanha salva no Neon com "+saved.createdCount+" entrega(s) nova(s).");
+   void recordActivity({
+    module:"campanha",action:old?"updated":"created",
+    entityId:merged.id,title:merged.title,
+    details:(merged.units||[]).length+" unidade(s) • "+saved.createdCount+" nova(s) entrega(s) • versão "+merged.version
+   }).catch(()=>{});
+   void refreshShared(false);
+  }catch(err){
+   setError(err.message||"Não foi possível salvar a campanha.");
+   if(err.status===409)void refreshShared(false);
+  }
  }
  async function toggleCampaignArchived(){
   if(!campaignDraft||!campaigns.some(c=>c.id===campaignDraft.id))return;
@@ -402,12 +417,21 @@ export default function Home({accessRole}) {
   if(next&&!window.confirm("Arquivar esta campanha? Suas entregas e seu histórico serão preservados."))return;
   const updated={...campaignDraft,archived:next,updatedAt:new Date().toISOString()};
   try{
-   await recordActivity({module:"campanha",action:next?"archived":"restored",
-    entityId:updated.id,title:updated.title||"Campanha",details:next?"Campanha arquivada":"Campanha restaurada"});
-   setCampaigns(list=>list.map(c=>c.id===updated.id?updated:c));
-   setCampaignDraft(updated);setDrawer(null);setError("");
-   notify(next?"Campanha arquivada.":"Campanha restaurada.");
-  }catch(err){setError(err.message||"Falha ao arquivar campanha.");}
+   const saved=await commercialRequest({
+    action:"save_campaign",item:updated,expectedRevision:campaignDraft.syncRevision||0
+   });
+   setCampaigns(list=>list.map(c=>c.id===updated.id?saved.item:c));
+   setCampaignDraft(saved.item);setDrawer(null);setError("");
+   notify(next?"Campanha arquivada no Neon.":"Campanha restaurada no Neon.");
+   void recordActivity({
+    module:"campanha",action:next?"archived":"restored",
+    entityId:updated.id,title:updated.title||"Campanha",
+    details:next?"Campanha arquivada":"Campanha restaurada"
+   }).catch(()=>{});
+  }catch(err){
+   setError(err.message||"Não foi possível arquivar a campanha.");
+   if(err.status===409)void refreshShared(false);
+  }
  }
  function confirmRead(t){const c=campaigns.find(c=>c.id===t.campaignId);if(!c)return;setEditing(e=>({...e,ackVersion:c.version}));notify("Confirmação será gravada ao salvar a demanda.");}
  function exportData(){
