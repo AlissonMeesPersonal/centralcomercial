@@ -88,7 +88,7 @@ async function getData(sql,access,units){
     taskCampaigns.has(r.id)
    )||access.role==="colaborador"&&taskCampaigns.has(r.id))
   .map(r=>({...r.payload,id:r.id,syncRevision:r.revision}));
- return {tasks,campaigns,counts:{tasks:taskRows.length,campaigns:campaignRows.length},role:access.role};
+ return {tasks,campaigns,counts:{tasks:taskRows.length,campaigns:campaignRows.length},role:access.role,assignedUnitIds:[...units]};
 }
 export async function GET(){
  try{
