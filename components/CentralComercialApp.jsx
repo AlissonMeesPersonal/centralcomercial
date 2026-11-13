@@ -499,6 +499,20 @@ export default function Home({accessRole}) {
    }).catch(()=>{});
   }catch(err){notify("Importação não realizada: "+err.message);}
  }
+ function exportLegacyBrowser(){
+  try{
+   const raw=localStorage.getItem("26fit-central-comercial-demo-v1");
+   if(!raw)throw Error("Não existem dados antigos neste navegador.");
+   const parsed=JSON.parse(raw);
+   if(!Array.isArray(parsed.tasks)||!Array.isArray(parsed.campaigns))
+    throw Error("O arquivo antigo não está no formato esperado.");
+   const url=URL.createObjectURL(new Blob([raw],{type:"application/json"}));
+   const link=document.createElement("a");
+   link.href=url;link.download="26fit-dados-antigos-navegador-"+day()+".json";
+   link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   notify("Backup original deste navegador exportado sem alterar seus dados.");
+  }catch(err){notify(err.message||"Não foi possível exportar o arquivo antigo.");}
+ }
  async function importLegacyBrowser(){
   try{
    const raw=localStorage.getItem("26fit-central-comercial-demo-v1");
@@ -664,7 +678,7 @@ export default function Home({accessRole}) {
    />}
    {nav==="Histórico"&&<HistoryDashboard units={units}/>}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}
-   {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>Demandas, campanhas, aprendizados, calendário, unidades e equipe utilizam o Neon compartilhado. O arquivo antigo do navegador foi preservado apenas para migração ou recuperação, e as edições simultâneas possuem controle de revisão.</Notice>{["developer","admin"].includes(accessRole)&&<EmailSettingsPanel/>}<div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup e mesclagem no Neon</h3><p>Exportação da base compartilhada e importação administrativa sem sobrescrever registros existentes</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Exportar JSON</Button>{["developer","admin"].includes(accessRole)&&<><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label><Button kind="secondary" onClick={importLegacyBrowser}><RotateCcw size={16}/> Migrar dados deste navegador</Button></>}</div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
+   {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>Demandas, campanhas, aprendizados, calendário, unidades e equipe utilizam o Neon compartilhado. O arquivo antigo do navegador foi preservado apenas para migração ou recuperação, e as edições simultâneas possuem controle de revisão.</Notice>{["developer","admin"].includes(accessRole)&&<EmailSettingsPanel/>}<div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup e mesclagem no Neon</h3><p>Exportação da base compartilhada e importação administrativa sem sobrescrever registros existentes</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Backup compartilhado</Button><Button onClick={exportLegacyBrowser} kind="secondary"><Download size={16}/> Exportar dados antigos do navegador</Button>{["developer","admin"].includes(accessRole)&&<><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label><Button kind="secondary" onClick={importLegacyBrowser}><RotateCcw size={16}/> Migrar dados deste navegador</Button></>}</div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
    </main>
   </div>
   {toast&&<div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
