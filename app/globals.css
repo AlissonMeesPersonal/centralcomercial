@@ -1070,3 +1070,9 @@
 .cc-sync-boot-error p{font-size:12px;line-height:1.8;color:#7e8d97;margin:0}
 @media(max-width:850px){.cc-sync-indicator{font-size:0;padding:7px;margin-left:5px}
  .cc-sync-indicator>span{width:8px;height:8px}}
+
+.cc-sync-warning{display:flex;align-items:flex-start;gap:10px;
+ padding:12px 15px;margin-bottom:16px;border:1px solid #ead7c6;
+ border-left:3px solid #d68d57;border-radius:9px;background:#fff8f2;
+ color:#885c40;font-size:11px;line-height:1.75}
+.cc-sync-warning svg{margin-top:1px;flex:none;color:#c88752}
