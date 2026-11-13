@@ -11,6 +11,7 @@ import EmailSettingsPanel from "./EmailSettingsPanel";
 import DateCalendarInput from "./DateCalendarInput";
 import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
+import { authClient } from "../lib/auth/client";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -20,7 +21,7 @@ import {
   MoreHorizontal, ArrowLeft, ShieldCheck, FileText, Target, Wallet,
   CircleAlert, Filter, RotateCcw, TrendingUp, TrendingDown, Save, Trash2, Eye,
   Info, Sparkles, List, Columns3, LockKeyhole, ChevronDown, Check,
-  MessageSquare, Pencil, ArrowRight, ChartColumnIncreasing, FolderOpen
+  MessageSquare, Pencil, ArrowRight, ChartColumnIncreasing, FolderOpen, LogOut
 } from "lucide-react";
 
 const STAGES = ["Ideias","Planejamento","Aguardando aprovação","Pronto para executar","Em execução","Em avaliação","Concluído"];
@@ -102,6 +103,20 @@ export default function Home({accessRole}) {
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
+  const [signingOut,setSigningOut]=useState(false);
+  async function handleSignOut(){
+   if(signingOut)return;
+   setSigningOut(true);
+   try{
+    const result=await authClient.signOut();
+    if(result?.error)throw new Error(result.error.message||"Não foi possível encerrar a sessão.");
+    // Navegação completa remove o painel da memória do cliente e força uma nova validação no servidor.
+    window.location.replace("/auth/sign-in");
+   }catch(e){
+    setSigningOut(false);
+    notify(e?.message||"Erro ao sair da conta. Tente novamente.");
+   }
+  }
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
  useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar")setNav("Calendário");}},[]);
@@ -561,7 +576,7 @@ export default function Home({accessRole}) {
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
   <div className="workspace">
-   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><div className="avatar small">D</div></div></header>
+   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><button type="button" className="btn secondary" onClick={handleSignOut} disabled={signingOut} aria-label="Sair da conta" title="Encerrar sessão"><LogOut size={16}/>{signingOut?" Saindo…":" Sair"}</button></div></header>
    <main className="main">
    {legacyIssue&&<div className="cc-sync-warning"><AlertTriangle size={17}/><span>{legacyIssue}</span></div>}
    {nav==="Visão geral"&&<>
