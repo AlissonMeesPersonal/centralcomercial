@@ -90,6 +90,12 @@ export default function Home({accessRole}) {
  const tasksRef=useRef(tasks);
  tasksRef.current=tasks;
  const stageWritesRef=useRef(new Map());
+ const serverRevisionsRef=useRef(new Map());
+ const sharedBusyRef=useRef(0);
+ const fetchingRef=useRef(false);
+ const initialRemoteRef=useRef(false);
+ const [syncState,setSyncState]=useState({status:"loading",error:"",lastAt:null});
+ const [legacyCounts,setLegacyCounts]=useState({tasks:0,campaigns:0});
  const [nav,setNav]=useState("Visão geral"),[view,setView]=useState("Kanban"),[filter,setFilter]=useState({q:"",unit:"",priority:"",stage:"",campaign:"",category:"",owner:"",period:""});
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
@@ -98,7 +104,86 @@ export default function Home({accessRole}) {
  const [showDemoUnits,setShowDemoUnits]=useState(false);
  useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar")setNav("Calendário");}},[]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
- useEffect(()=>{try{const raw=localStorage.getItem("26fit-central-comercial-demo-v1");if(raw){const parsed=JSON.parse(raw);if(Array.isArray(parsed.tasks)&&Array.isArray(parsed.campaigns)&&Array.isArray(parsed.units)){setTasks(parsed.tasks);setCampaigns(parsed.campaigns);setUnits(mergeOfficialUnits(parsed.units));}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}else{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}}catch{const s=seedData();setTasks(s.tasks);setCampaigns(s.campaigns);setUnits(s.units);}setReady(true);},[]);
+ async function commercialRequest(payload){
+  sharedBusyRef.current++;
+  try{
+   const response=await fetch("/api/commercial",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok){
+    const issue=new Error(result.error||"O Neon não confirmou a gravação.");
+    issue.status=response.status;
+    throw issue;
+   }
+   return result;
+  }finally{sharedBusyRef.current--;}
+ }
+ async function refreshShared(firstLoad=false){
+  if(fetchingRef.current||sharedBusyRef.current>0)return;
+  fetchingRef.current=true;
+  try{
+   const response=await fetch("/api/commercial",{credentials:"same-origin",cache:"no-store"});
+   let payload=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(payload.error||"Falha ao carregar dados compartilhados.");
+   if(firstLoad&&!initialRemoteRef.current){
+    initialRemoteRef.current=true;
+    // Importação automática e não destrutiva SOMENTE na primeira carga de
+    // uma conta administradora com o banco ainda vazio. O arquivo local
+    // original nunca é apagado nem sobrescrito.
+    try{
+     const raw=localStorage.getItem("26fit-central-comercial-demo-v1");
+     const old=raw?JSON.parse(raw):null;
+     if(Array.isArray(old?.units))setUnits(mergeOfficialUnits(old.units));
+     else setUnits(seedData().units);
+     const tasks=(Array.isArray(old?.tasks)?old.tasks:[]).filter(x=>x&&!x.demo&&x.title?.trim());
+     const campaigns=(Array.isArray(old?.campaigns)?old.campaigns:[]).filter(x=>x&&!x.demo&&x.title?.trim());
+     setLegacyCounts({tasks:tasks.length,campaigns:campaigns.length});
+     if(["developer","admin"].includes(accessRole)&&
+       Number(payload.counts?.tasks||0)===0&&Number(payload.counts?.campaigns||0)===0&&
+       (tasks.length||campaigns.length)){
+      try{
+       await commercialRequest({action:"merge_legacy",tasks,campaigns});
+       const post=await fetch("/api/commercial",{credentials:"same-origin",cache:"no-store"});
+       if(!post.ok)throw Error("Falha ao consultar dados após a migração.");
+       payload=await post.json();
+      }catch(e){
+       setSyncState({status:"warning",error:"Dados antigos preservados neste navegador, mas a importação automática não foi concluída: "+e.message,lastAt:null});
+      }
+     }
+    }catch{
+     setUnits(seedData().units);
+     setLegacyCounts({tasks:0,campaigns:0});
+    }
+   }
+   // Se uma alteração está sendo gravada, nunca substitua a visualização
+   // otimista por uma resposta GET de outra versão.
+   if(sharedBusyRef.current>0)return;
+   tasksRef.current=Array.isArray(payload.tasks)?payload.tasks:[];
+   serverRevisionsRef.current=new Map(tasksRef.current.map(t=>[t.id,t.syncRevision||0]));
+   setTasks(tasksRef.current);
+   setCampaigns(Array.isArray(payload.campaigns)?payload.campaigns:[]);
+   setReady(true);
+   setSyncState({status:"ready",error:"",lastAt:new Date().toISOString()});
+  }catch(e){
+   setSyncState(x=>({status:"error",error:e.message||"Neon indisponível",lastAt:x.lastAt}));
+  }finally{
+   fetchingRef.current=false;
+  }
+ }
+ useEffect(()=>{
+  refreshShared(true);
+ },[]);
+ useEffect(()=>{
+  if(!ready)return;
+  const timer=setInterval(()=>{
+   if(document.visibilityState==="visible"&&!drawer)refreshShared(false);
+  },12000);
+  const onFocus=()=>{if(!drawer)refreshShared(false);};
+  window.addEventListener("focus",onFocus);
+  return ()=>{clearInterval(timer);window.removeEventListener("focus",onFocus);};
+ },[ready,drawer]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
  const privateUnitFields=new Set(["leader","leaderContact","coordinator","coordinatorContact","cnpj","cep","street","number","complement","administrativeName","churnCode"]);
  function publicUnitForStorage(unit){
@@ -131,7 +216,8 @@ export default function Home({accessRole}) {
    }).catch(e=>{if(e.name!=="AbortError")setInternalDirectoryState("error");});
   return ()=>controller.abort();
  },[ready]);
- useEffect(()=>{if(ready){try{localStorage.setItem("26fit-central-comercial-demo-v1",JSON.stringify({units:units.map(publicUnitForStorage),campaigns,tasks}));}catch{}}},[ready,units,campaigns,tasks]);
+ // O localStorage antigo fica intocado para recuperação/migração manual.
+ // A fonte oficial dos dados comerciais agora é a API compartilhada do Neon.
  const normalizeSearch=(v)=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  const directoryUnits=units.filter(u=>showDemoUnits||!u.demo).filter(u=>{
     const search=normalizeSearch([u.name,u.city,u.state,u.region,u.address,u.coordinator,u.leader,u.cnpj,u.cep,u.administrativeName,u.churnCode].filter(Boolean).join(" "));
