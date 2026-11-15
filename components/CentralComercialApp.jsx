@@ -85,7 +85,8 @@ function TaskCard({item,units,onOpen,compact=false,drag=true}) {
  </article>;
 }
 export default function Home({accessRole}) {
- const [ready,setReady]=useState(false),[units,setUnits]=useState([]),[campaigns,setCampaigns]=useState([]),[tasks,setTasks]=useState([]);
+ const [ready,setReady]=useState(false),[units,setUnits]=useState([]),[campaigns,setCampaigns]=useState([]),[tasks,setTasks]=useState([]),[deletedTasks,setDeletedTasks]=useState([]);
+ const [historyTab,setHistoryTab]=useState("atividades"),[deletedSearch,setDeletedSearch]=useState(""),[selectedDeleted,setSelectedDeleted]=useState(null);
  // Refs preservam a etapa mais recente durante movimentações rápidas,
  // sem esperar a renderização ou a resposta de chamadas externas.
  const tasksRef=useRef(tasks);
@@ -192,6 +193,7 @@ export default function Home({accessRole}) {
    tasksRef.current=Array.isArray(payload.tasks)?payload.tasks:[];
    serverRevisionsRef.current=new Map(tasksRef.current.map(t=>[t.id,t.syncRevision||0]));
    setTasks(tasksRef.current);
+   setDeletedTasks(Array.isArray(payload.deletedTasks)?payload.deletedTasks:[]);
    setCampaigns(Array.isArray(payload.campaigns)?payload.campaigns:[]);
    setAssignedUnitIds(Array.isArray(payload.assignedUnitIds)?payload.assignedUnitIds:[]);
    setReady(true);
@@ -387,6 +389,24 @@ export default function Home({accessRole}) {
    }).catch(()=>{});
   }catch(err){
    setError(err.message||"Falha ao gravar a demanda compartilhada.");
+   if(err.status===409)void refreshShared(false);
+  }
+ }
+ async function deleteTask(){
+  if(!editing||!tasks.some(t=>t.id===editing.id)||!["developer","admin","gestor"].includes(accessRole))return;
+  const confirmed=window.confirm("Excluir esta demanda das listas ativas? Ela ficará preservada no Histórico, com usuário, data, comentários e movimentações, somente para consulta.");
+  if(!confirmed)return;
+  try{
+   const result=await commercialRequest({action:"delete_task",id:editing.id,expectedRevision:editing.syncRevision||0});
+   setTasks(list=>list.filter(t=>t.id!==editing.id));
+   setDeletedTasks(list=>[result.item,...list.filter(t=>t.id!==editing.id)]);
+   tasksRef.current=tasksRef.current.filter(t=>t.id!==editing.id);
+   serverRevisionsRef.current.delete(editing.id);
+   setDrawer(null);setEditing(null);setError("");
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
+   notify("Demanda excluída das listas. Registro preservado no Histórico.");
+  }catch(err){
+   setError(err.message||"Não foi possível excluir a demanda.");
    if(err.status===409)void refreshShared(false);
   }
  }
@@ -698,13 +718,44 @@ export default function Home({accessRole}) {
     });setDrawer("campaign");}}
     onGoTasks={()=>setNav("Demandas")}
    />}
-   {nav==="Histórico"&&<HistoryDashboard units={units}/>}
+   {nav==="Histórico"&&<section>
+     <div className="toolbar"><div className="tab-list">
+      <button className={historyTab==="atividades"?"active":""} onClick={()=>setHistoryTab("atividades")}><History size={16}/> Atividades</button>
+      <button className={historyTab==="excluidas"?"active":""} onClick={()=>setHistoryTab("excluidas")}><Trash2 size={16}/> Demandas excluídas ({deletedTasks.length})</button>
+     </div></div>
+     {historyTab==="atividades"?<HistoryDashboard units={units}/>:
+      <section className="panel" style={{padding:20}}>
+       <div className="section-title"><div><h3>Demandas excluídas</h3><p>Registros preservados no Neon somente para consulta, sem recuperação obrigatória.</p></div><button className="btn secondary" onClick={()=>refreshShared(false)}><RotateCcw size={16}/> Atualizar</button></div>
+       <div className="search" style={{marginBottom:16}}><Search size={16}/><input aria-label="Pesquisar demandas excluídas" placeholder="Pesquisar título, responsável ou quem excluiu" value={deletedSearch} onChange={e=>setDeletedSearch(e.target.value)}/></div>
+       <div className="table-wrap"><table><thead><tr><th>Demanda</th><th>Unidade</th><th>Responsável</th><th>Excluída em</th><th>Excluída por</th><th>Consulta</th></tr></thead><tbody>
+       {deletedTasks.filter(t=>[t.title,t.owner,t.deletedBy].some(v=>normalizeSearch(v).includes(normalizeSearch(deletedSearch)))).sort((a,b)=>String(b.deletedAt).localeCompare(String(a.deletedAt))).map(t=><tr key={t.id}>
+        <td><strong>{t.title}</strong><small>{t.stage} · {t.category}</small></td><td><UnitName units={units} id={t.unitId}/></td><td>{t.owner||"—"}</td>
+        <td>{t.deletedAt?new Date(t.deletedAt).toLocaleString("pt-BR"):"—"}</td><td>{t.deletedBy||"—"}</td>
+        <td><button className="btn secondary" onClick={()=>setSelectedDeleted(t)}><Eye size={16}/> Ver detalhes</button></td>
+       </tr>)}</tbody></table>
+       {!deletedTasks.length&&<div className="empty">Nenhuma demanda excluída.</div>}</div>
+      </section>}
+    </section>}
    {nav==="Equipe"&&<TeamManagement accessRole={accessRole} units={units}/>}
    {nav==="Configurações"&&<><div className="heading-row"><div><div className="eyebrow">ADMINISTRAÇÃO DO AMBIENTE</div><h1>Configurações</h1><p>Manutenção e preferências da Central Comercial.</p></div><Settings2 size={30} color="#8b949d"/></div><Notice>Demandas, campanhas, aprendizados, calendário, unidades e equipe utilizam o Neon compartilhado. O arquivo antigo do navegador foi preservado apenas para migração ou recuperação, e as edições simultâneas possuem controle de revisão.</Notice>{["developer","admin"].includes(accessRole)&&<EmailSettingsPanel/>}<div className="settings-grid"><section className="panel"><div className="section-title"><div><h3>Backup e mesclagem no Neon</h3><p>Exportação da base compartilhada e importação administrativa sem sobrescrever registros existentes</p></div><Download size={20}/></div><div className="settings-actions"><Button onClick={exportData} kind="secondary"><Download size={16}/> Backup compartilhado</Button><Button onClick={exportLegacyBrowser} kind="secondary"><Download size={16}/> Exportar dados antigos do navegador</Button>{["developer","admin"].includes(accessRole)&&<><label className="btn secondary file-label"><Upload size={16}/> Importar JSON<input type="file" accept=".json,application/json" onChange={e=>{importData(e.target.files?.[0]);e.target.value="";}}/></label><Button kind="secondary" onClick={importLegacyBrowser}><RotateCcw size={16}/> Migrar dados deste navegador</Button></>}</div></section><section className="panel"><div className="section-title"><div><h3>Registros de demonstração</h3><p>Remova apenas dados marcados como fictícios</p></div><Trash2 size={20}/></div><div className="settings-actions"><span>{tasks.filter(t=>t.demo).length} demandas · {campaigns.filter(c=>c.demo).length} campanha(s) · {localUnits()} unidade(s)</span><Button kind="danger" onClick={clearDemo}><Trash2 size={16}/> Remover demos</Button></div></section></div></>}
    </main>
   </div>
   {toast&&<div className="toast"><CheckCircle2 size={18}/>{toast}</div>}
-  {drawer==="task"&&editing&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer"><div className="drawer-head"><div><span className="eyebrow">DEMANDA • {editing.demo?"DEMONSTRAÇÃO":"NEON COMPARTILHADO"}</span><h2>{tasks.some(t=>t.id===editing.id)?"Editar demanda":"Nova demanda"}</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content">
+  {selectedDeleted&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedDeleted(null);}}><div className="drawer"><div className="drawer-head"><div><span className="eyebrow">HISTÓRICO • SOMENTE LEITURA</span><h2>{selectedDeleted.title}</h2></div><button className="icon-button" onClick={()=>setSelectedDeleted(null)}><X size={20}/></button></div><div className="drawer-content">
+     <Notice>Esta demanda foi excluída das listas ativas e permanece preservada para auditoria. Não é necessário recuperá-la para consultar.</Notice>
+     <p><strong>Excluída por:</strong> {selectedDeleted.deletedBy||"Não informado"}</p>
+     <p><strong>Data da exclusão:</strong> {selectedDeleted.deletedAt?new Date(selectedDeleted.deletedAt).toLocaleString("pt-BR"):"Não informada"}</p>
+     <p><strong>Unidade:</strong> <UnitName units={units} id={selectedDeleted.unitId}/></p>
+     <p><strong>Responsável:</strong> {selectedDeleted.owner||"Não informado"}</p>
+     <p><strong>Etapa:</strong> {selectedDeleted.stage}</p>
+     <p><strong>Prioridade:</strong> {selectedDeleted.priority}</p>
+     <p><strong>Prazo:</strong> {dateFmt(selectedDeleted.due)}</p>
+     <div className="form-section"><h3>Objetivo e informações</h3><p>{selectedDeleted.objective||"Sem objetivo registrado."}</p><p><strong>Categoria:</strong> {selectedDeleted.category}</p><p><strong>Dependências:</strong> {selectedDeleted.dependencies||"—"}</p></div>
+     <div className="form-section"><h3>Atividades</h3>{(selectedDeleted.checklist||[]).map((c,i)=><p key={c.id||i}>{c.done?"✓":"○"} {c.title}</p>)}</div>
+     <div className="form-section"><h3>Comentários</h3>{(selectedDeleted.comments||[]).map((c,i)=><p key={c.id||i}>{c.text} <small>{c.at?new Date(c.at).toLocaleString("pt-BR"):""}</small></p>)}</div>
+     <div className="form-section"><h3>Movimentações registradas</h3>{(selectedDeleted.history||[]).slice().reverse().map((h,i)=><p key={h.id||i}><strong>{h.action}</strong> · {h.by||"Usuário não identificado"} · {h.at?new Date(h.at).toLocaleString("pt-BR"):""}</p>)}</div>
+    </div><div className="drawer-footer"><Button kind="secondary" onClick={()=>setSelectedDeleted(null)}>Fechar consulta</Button></div></div></div>}
+   {drawer==="task"&&editing&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer"><div className="drawer-head"><div><span className="eyebrow">DEMANDA • {editing.demo?"DEMONSTRAÇÃO":"NEON COMPARTILHADO"}</span><h2>{tasks.some(t=>t.id===editing.id)?"Editar demanda":"Nova demanda"}</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content">
    {error&&<div className="validation"><CircleAlert size={17}/>{error}</div>}
    {editing.campaignId&&(()=>{const c=campaigns.find(c=>c.id===editing.campaignId);return c?<div className="version"><div><strong>Campanha: {c.title}</strong><small>Orientações centrais · versão {c.version}</small><p>{c.description}</p></div>{editing.ackVersion<c.version?<Button kind="secondary" onClick={()=>confirmRead(editing)}><Check size={15}/> Confirmar leitura</Button>:<Tag tone="success">Leitura confirmada</Tag>}</div>:null;})()}
    <div className="form-grid"><Field label="Título *"><input value={editing.title} onChange={e=>setEditing(d=>({...d,title:e.target.value}))}/></Field><Field label="Objetivo"><textarea rows={2} value={editing.objective} onChange={e=>setEditing(d=>({...d,objective:e.target.value}))}/></Field><div className="form-pair"><Field label="Unidade"><select value={editing.unitId} disabled={accessRole==="colaborador"} onChange={e=>setEditing(d=>({...d,unitId:e.target.value}))}>{units.filter(u=>["developer","admin","gestor"].includes(accessRole)||assignedUnitIds.includes(u.id)||u.id===editing.unitId).map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Field><Field label="Categoria"><select value={editing.category} onChange={e=>setEditing(d=>({...d,category:e.target.value,checklist:checklist(e.target.value)}))}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></Field></div><div className="form-pair"><Field label="Responsável"><input value={editing.owner} onChange={e=>setEditing(d=>({...d,owner:e.target.value}))}/></Field><Field label="Pessoa de apoio"><input value={editing.support||""} onChange={e=>setEditing(d=>({...d,support:e.target.value}))}/></Field></div><div className="form-pair"><Field label="Etapa"><select value={editing.stage} onChange={e=>setEditing(d=>({...d,stage:e.target.value}))}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></Field><Field label="Prioridade"><select value={editing.priority} onChange={e=>setEditing(d=>({...d,priority:e.target.value}))}>{PRIORITIES.map(s=><option key={s}>{s}</option>)}</select></Field></div><div className="form-pair"><Field label="Prazo"><DateCalendarInput type="date" ariaLabel="Prazo da demanda" value={editing.due||""} onChange={e=>setEditing(d=>({...d,due:e.target.value}))}/></Field><Field label="Colaboradores (observações)"><input value={editing.collaborators||""} onChange={e=>setEditing(d=>({...d,collaborators:e.target.value}))}/></Field></div><TeamAttendeePicker value={editing.participantEmails||[]} onChange={participantEmails=>setEditing(d=>({...d,participantEmails}))} label="Participantes que receberão lembretes do prazo"/><div className="form-pair"><Field label="Público-alvo"><input value={editing.targetAudience||""} onChange={e=>setEditing(d=>({...d,targetAudience:e.target.value}))}/></Field><Field label="Oferta"><input value={editing.offer||""} onChange={e=>setEditing(d=>({...d,offer:e.target.value}))}/></Field></div><div className="form-pair"><Field label="Canais"><input value={editing.channels||""} onChange={e=>setEditing(d=>({...d,channels:e.target.value}))}/></Field><Field label="Dependências"><input value={editing.dependencies||""} onChange={e=>setEditing(d=>({...d,dependencies:e.target.value}))}/></Field></div></div>
@@ -713,7 +764,7 @@ export default function Home({accessRole}) {
    <div className="form-section"><h3><CircleAlert size={18}/> Bloqueios e conclusão</h3><label className="toggle-line"><input type="checkbox" checked={!!editing.blocked} onChange={e=>setEditing(d=>({...d,blocked:e.target.checked}))}/> Demanda bloqueada</label>{editing.blocked&&<Field label="Motivo do bloqueio *"><textarea value={editing.blockReason||""} onChange={e=>setEditing(d=>({...d,blockReason:e.target.value}))}/></Field>}
    {editing.stage==="Concluído"&&<div className="learning-input"><Field label="O que funcionou? *"><textarea value={editing.learning?.worked||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,worked:e.target.value}}))}/></Field><Field label="Quais foram as dificuldades? *"><textarea value={editing.learning?.challenges||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,challenges:e.target.value}}))}/></Field><Field label="Recomendação *"><select value={editing.learning?.decision||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,decision:e.target.value}}))}><option value="">Selecione</option><option>Repetir</option><option>Ajustar</option><option>Encerrar</option></select></Field>{editing.checklist.some(c=>c.required&&!c.done)&&<Field label="Justificativa para atividades obrigatórias pendentes *"><textarea value={editing.learning?.pendingReason||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,pendingReason:e.target.value}}))}/></Field>}</div>}</div>
    <div className="form-section"><h3><MessageSquare size={18}/> Comentários e histórico</h3><div className="comment-list">{(editing.comments||[]).map(c=><div key={c.id} className="comment"><strong>Usuário demonstrativo</strong><p>{c.text}</p><small>{dateFmt(c.at?.slice(0,10))}</small></div>)}</div><textarea id="new-comment" rows={2} placeholder="Registre um comentário ou aprendizado..."/><button className="add-link" onClick={()=>{const el=document.getElementById("new-comment");const value=el?.value?.trim();if(value){setEditing(d=>({...d,comments:[...(d.comments||[]),{id:uid(),at:new Date().toISOString(),text:value}]}));el.value="";}}}><Plus size={15}/> Adicionar comentário</button>{(editing.history||[]).slice(-4).reverse().map((h,i)=><div className="history" key={i}>{h.action} · {h.by}</div>)}</div>
-  </div><div className="drawer-footer">{tasks.some(t=>t.id===editing.id)&&<Button kind="secondary" onClick={toggleTaskArchived}><Archive size={16}/> {editing.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask} disabled={!!editing.archived}><Save size={16}/> Salvar demanda</Button></div></div></div>}
+  </div><div className="drawer-footer">{tasks.some(t=>t.id===editing.id)&&["developer","admin","gestor"].includes(accessRole)&&<Button kind="danger" onClick={deleteTask}><Trash2 size={16}/> Excluir demanda</Button>}{tasks.some(t=>t.id===editing.id)&&<Button kind="secondary" onClick={toggleTaskArchived}><Archive size={16}/> {editing.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask} disabled={!!editing.archived}><Save size={16}/> Salvar demanda</Button></div></div></div>}
   {drawer==="campaign"&&campaignDraft&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer campaign-drawer"><div className="drawer-head"><div><span className="eyebrow">CAMPANHA DA REDE</span><h2>Planejamento central</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content"><Notice>Ao salvar, será criada uma entrega para cada unidade selecionada que ainda não tenha uma demanda vinculada. Retirar unidades não apaga históricos.</Notice>{error&&<div className="validation">{error}</div>}<Field label="Nome da campanha *"><input value={campaignDraft.title} onChange={e=>setCampaignDraft(d=>({...d,title:e.target.value}))}/></Field><Field label="Orientações da gestão (versionadas)"><textarea rows={5} value={campaignDraft.description} onChange={e=>setCampaignDraft(d=>({...d,description:e.target.value}))}/></Field><div className="form-pair"><Field label="Indicador consolidado"><select value={campaignDraft.indicator} onChange={e=>setCampaignDraft(d=>({...d,indicator:e.target.value}))}>{METRICS.map(m=><option key={m}>{m}</option>)}</select></Field><Field label="Meta consolidada"><input type="number" min="0" value={campaignDraft.goal??""} onChange={e=>setCampaignDraft(d=>({...d,goal:e.target.value===""?null:Number(e.target.value)}))}/></Field></div><div className="form-section"><h3><Building2 size={18}/> Unidades participantes</h3>
    <CampaignUnitSelector units={units} selectedIds={campaignDraft.units||[]} onChange={unitIds=>setCampaignDraft(d=>({...d,units:unitIds}))}/>
    </div></div><div className="drawer-footer">{campaigns.some(c=>c.id===campaignDraft.id)&&<Button kind="secondary" onClick={toggleCampaignArchived}><Archive size={16}/> {campaignDraft.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveCampaign} disabled={!!campaignDraft.archived}><Save size={16}/> Salvar campanha</Button></div></div></div>}
