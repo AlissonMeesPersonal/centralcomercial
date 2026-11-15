@@ -79,8 +79,11 @@ async function getData(sql,access,units){
   sql.query("SELECT id,payload,unit_id,revision,created_by,updated_at FROM cc_commercial_tasks ORDER BY updated_at DESC,id LIMIT 7000"),
   sql.query("SELECT id,payload,revision,created_by,updated_at FROM cc_commercial_campaigns ORDER BY updated_at DESC,id LIMIT 1200")
  ]);
- const tasks=taskRows.filter(r=>allowedTask(access,{...r.payload,unitId:r.unit_id,createdBy:r.created_by},units))
+ const visibleRows=taskRows.filter(r=>allowedTask(access,{...r.payload,unitId:r.unit_id,createdBy:r.created_by},units));
+ const tasks=visibleRows.filter(r=>!r.payload?.deletedAt)
   .map(r=>({...r.payload,id:r.id,unitId:r.unit_id,syncRevision:r.revision,createdBy:r.created_by}));
+ const deletedTasks=manager(access)?visibleRows.filter(r=>!!r.payload?.deletedAt)
+  .map(r=>({...r.payload,id:r.id,unitId:r.unit_id,syncRevision:r.revision,createdBy:r.created_by})):[];
  const taskCampaigns=new Set(tasks.map(t=>t.campaignId).filter(Boolean));
  const campaigns=campaignRows.filter(r=>manager(access)||
    access.role==="lider"&&(
@@ -88,7 +91,7 @@ async function getData(sql,access,units){
     taskCampaigns.has(r.id)
    )||access.role==="colaborador"&&taskCampaigns.has(r.id))
   .map(r=>({...r.payload,id:r.id,syncRevision:r.revision}));
- return {tasks,campaigns,counts:{tasks:taskRows.length,campaigns:campaignRows.length},role:access.role,assignedUnitIds:[...units]};
+ return {tasks,deletedTasks,campaigns,counts:{tasks:taskRows.length,campaigns:campaignRows.length},role:access.role,assignedUnitIds:[...units]};
 }
 export async function GET(){
  try{
@@ -164,6 +167,23 @@ export async function POST(request){
    return response({ok:true,item:{...clean,syncRevision:Number(saved.revision)},
     createdTasks:saved.createdTasks||[],createdCount:saved.createdCount||0});
   }
+  if(action==="delete_task"){
+   if(!manager(access))return error("Somente a administração pode excluir demandas.",403);
+   const id=data.id,expected=data.expectedRevision;
+   if(!isValidId(id)||!Number.isInteger(expected)||expected<1)return error("Exclusão inválida.",422);
+   const existing=await sql.query("SELECT payload,revision FROM cc_commercial_tasks WHERE id=$1",[id]);
+   if(!existing.length)return error("Demanda não encontrada.",404);
+   if(existing[0].payload?.deletedAt)return error("Esta demanda já foi excluída.",409);
+   if(Number(existing[0].revision)!==expected)return error("A demanda foi modificada por outra pessoa. Atualize e tente novamente.",409);
+   const at=new Date().toISOString();
+   const event={id:randomUUID(),at,action:"Demanda excluída",by:access.email};
+   const rows=await sql.query(
+    "UPDATE cc_commercial_tasks SET payload=payload || jsonb_build_object('deletedAt',$2::text,'deletedBy',$3::text,'updatedAt',$2::text,'history',COALESCE(payload->'history','[]'::jsonb)||jsonb_build_array($4::jsonb)),revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$1 AND revision=$5 AND NOT (payload ? 'deletedAt') RETURNING payload,revision",
+    [id,at,access.email,JSON.stringify(event),expected]
+   );
+   if(!rows.length)return error("A demanda foi modificada por outra pessoa. Atualize e tente novamente.",409);
+   return response({ok:true,item:{...rows[0].payload,id,syncRevision:Number(rows[0].revision)}});
+  }
   if(action==="save_task"){
    const item=data.item;
    const invalid=validateTask(item);
@@ -173,6 +193,7 @@ export async function POST(request){
    if(!await unitIsKnown(sql,item.unitId))return error("Unidade não cadastrada.",422);
    const existing=await sql.query("SELECT id,payload,unit_id,revision,created_by FROM cc_commercial_tasks WHERE id=$1",[item.id]);
    const current=existing[0]||null;
+   if(current?.payload?.deletedAt)return error("Esta demanda foi excluída e está disponível somente no Histórico.",409);
    if(!allowedTask(access,item,units,true)||
        current&&!allowedTask(access,{...current.payload,unitId:current.unit_id,createdBy:current.created_by},units,true))
     return error("Você não pode editar demandas desta unidade.",403);
@@ -209,6 +230,7 @@ export async function POST(request){
    const oldRows=await sql.query("SELECT payload,unit_id,created_by FROM cc_commercial_tasks WHERE id=$1",[id]);
    if(!oldRows.length)return error("Demanda não encontrada.",404);
    const old=oldRows[0];
+   if(old.payload?.deletedAt)return error("A demanda foi excluída e não pode ser movimentada.",409);
    if(!allowedTask(access,{...old.payload,unitId:old.unit_id,createdBy:old.created_by},units,true))
     return error("Seu perfil não pode movimentar esta demanda.",403);
    if(access.role==="colaborador")return error("Colaboradores podem concluir suas atividades, mas não alterar etapas do Kanban.",403);
