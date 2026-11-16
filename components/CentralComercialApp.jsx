@@ -133,6 +133,8 @@ export default function Home({accessRole}) {
    if(!response.ok){
     const issue=new Error(result.error||"O Neon não confirmou a gravação.");
     issue.status=response.status;
+    issue.failures=Array.isArray(result.failures)?result.failures:[];
+    issue.failedCount=Number(result.failedCount||0);
     throw issue;
    }
    return result;
@@ -519,8 +521,13 @@ export default function Home({accessRole}) {
    campaigns:data.campaigns.filter(x=>x&&!x.demo)
   });
   await refreshShared(false);
-  setLegacyIssue("");
-  setLegacyCounts({tasks:0,campaigns:0});
+  if(result.partial){
+   const failures=(result.failures||[]).map(f=>f.kind+": "+f.title+" — "+f.reason);
+   setLegacyIssue("Migração parcial: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas; "+result.failedCount+" registro(s) com erro. "+failures.slice(0,8).join(" | "));
+  }else{
+   setLegacyIssue("");
+   setLegacyCounts({tasks:0,campaigns:0});
+  }
   return result;
  }
  async function importData(file){
@@ -533,13 +540,16 @@ export default function Home({accessRole}) {
    if(!window.confirm("Mesclar os registros deste backup no Neon? Registros já existentes serão preservados, sem sobrescrita."))
     return;
    const result=await mergeBackup(data);
-   notify("Mesclagem concluída: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
+   notify(result.partial?"Mesclagem parcial: "+result.failedCount+" registro(s) precisam de revisão. Veja o aviso no topo.":"Mesclagem concluída: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
    void recordActivity({
     module:"configuracoes",action:"backup_imported",entityId:"backup-"+uid(),
     title:"Backup comercial mesclado no Neon",
     details:result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas"
    }).catch(()=>{});
-  }catch(err){notify("Importação não realizada: "+err.message);}
+  }catch(err){
+   if(err.failures?.length)setLegacyIssue("Importação não realizada. Motivos: "+err.failures.map(f=>f.kind+": "+f.title+" — "+f.reason).slice(0,8).join(" | "));
+   notify("Importação não realizada: "+err.message);
+  }
  }
  function exportLegacyBrowser(){
   try{
@@ -562,8 +572,11 @@ export default function Home({accessRole}) {
    const data=JSON.parse(raw);
    if(!window.confirm("Importar registros antigos deste navegador para o Neon? Nenhum dado existente será substituído."))return;
    const result=await mergeBackup(data);
-   notify("Migração local: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
-  }catch(err){notify("Importação local não realizada: "+err.message);}
+   notify(result.partial?"Migração parcial: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas; "+result.failedCount+" com erro. Confira o aviso.":"Migração local: "+result.tasksImported+" demandas e "+result.campaignsImported+" campanhas adicionadas.");
+  }catch(err){
+   if(err.failures?.length)setLegacyIssue("Importação local não realizada. Motivos: "+err.failures.map(f=>f.kind+": "+f.title+" — "+f.reason).slice(0,8).join(" | "));
+   notify("Importação local não realizada: "+err.message);
+  }
  }
  async function clearDemo(){
   if(!window.confirm("Remover registros de demonstração? Os demais registros deste navegador serão preservados."))return;
