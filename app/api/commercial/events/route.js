@@ -1,5 +1,5 @@
-import {getAccess} from "../../../lib/access";
-import {database} from "../../../lib/db";
+import {getAccess} from "../../../../lib/access";
+import {database} from "../../../../lib/db";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
