@@ -125,11 +125,61 @@ export async function POST(request){
    if(campaigns.length>350||tasks.length>2000)return error("Lote de importação excessivo.",413);
    for(const c of campaigns.filter(x=>!x.demo)){const invalid=validateCampaign({...x,description:String(x.description||""),version:Number(x.version||1),units:x.units||[]});if(invalid)return error(invalid,422);}
    for(const t of tasks.filter(x=>!x.demo)){const invalid=validateTask(t);if(invalid)return error(invalid,422);}
-   const rows=await sql.query(
-    "SELECT cc_commercial_import_legacy($1::jsonb,$2::jsonb,$3)::jsonb AS result",
-    [JSON.stringify(campaigns),JSON.stringify(tasks),access.email]
-   );
-   return response({ok:true,...rows[0].result});
+   // O lote antigo pode conter um registro incompatível. Se a função
+   // transacional falhar, importamos individualmente, sem sobrescrever
+   // registros existentes, e informamos exatamente o que não entrou.
+   try{
+    const rows=await sql.query(
+     "SELECT cc_commercial_import_legacy($1::jsonb,$2::jsonb,$3)::jsonb AS result",
+     [JSON.stringify(campaigns),JSON.stringify(tasks),access.email]
+    );
+    return response({ok:true,...rows[0].result,failedCount:0,failures:[]});
+   }catch(batchError){
+    console.error("cc_merge_legacy_batch_failed",{code:batchError.code||"unknown",message:batchError.message});
+    const failures=[];
+    let tasksImported=0;
+    const importOne=async(kind,item)=>{
+     if(!item||item.demo)return;
+     // Mantemos a mesma identificação usada na função de importação.
+     if(!isValidId(item.id)||typeof item.title!=="string"||item.title.trim().length<2){
+      failures.push({kind,title:String(item?.title||"Sem título").slice(0,100),reason:"Identificador ou título inválido"});
+      return;
+     }
+     const clean=stripRevision(item);
+     try{
+      if(kind==="campanha"){
+       const rows=await sql.query(
+        "INSERT INTO cc_commercial_campaigns(id,payload,created_by,updated_by) VALUES($1,$2::jsonb,$3,$3) ON CONFLICT(id) DO NOTHING RETURNING id",
+        [item.id,JSON.stringify(clean),access.email]
+       );
+       campaignCount+=rows.length;
+      }else{
+       const rows=await sql.query(
+        "INSERT INTO cc_commercial_tasks(id,payload,unit_id,campaign_id,created_by,updated_by) VALUES($1,$2::jsonb,$3,$4,$5,$5) ON CONFLICT(id) DO NOTHING RETURNING id",
+        [item.id,JSON.stringify(clean),item.unitId,item.campaignId||null,access.email]
+       );
+       tasksImported+=rows.length;
+      }
+     }catch(err){
+      console.error("cc_merge_legacy_row_failed",{kind,id:item.id,code:err.code||"unknown",message:err.message});
+      failures.push({kind,title:item.title.slice(0,100),reason:
+       err.code==="23503"?"Referência de unidade ou campanha não encontrada":
+       err.code==="23502"?"Campo obrigatório ausente":
+       err.code==="23514"?"Formato incompatível com o banco":
+       err.code==="22001"?"Texto excede o limite permitido":
+       "Erro no banco ("+String(err.code||"indisponível").slice(0,24)+")"});
+     }
+    };
+    let campaignCount=0;
+    for(const item of campaigns)await importOne("campanha",item);
+    for(const item of tasks)await importOne("demanda",item);
+    const failedCount=failures.length;
+    if(!campaignCount&&!tasksImported&&failedCount){
+     return response({error:"Não foi possível migrar os registros antigos. O backup local foi preservado.",failedCount,failures:failures.slice(0,20)},503);
+    }
+    return response({ok:failedCount===0,partial:failedCount>0,
+     campaignsImported:campaignCount,tasksImported,failedCount,failures:failures.slice(0,20)});
+   }
   }
   if(action==="save_campaign"){
    if(!manager(access))return error("Somente a gestão pode administrar campanhas centrais.",403);
