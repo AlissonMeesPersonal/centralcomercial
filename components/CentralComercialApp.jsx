@@ -211,12 +211,34 @@ export default function Home({accessRole}) {
  },[]);
  useEffect(()=>{
   if(!ready)return;
+  let source=null;
+  const disconnect=()=>{if(source){source.close();source=null;}};
+  const connect=()=>{
+   if(document.visibilityState!=="visible"||drawer||source)return;
+   if(typeof EventSource==="undefined")return;
+   source=new EventSource("/api/commercial/events");
+   // A cada reconexão consultamos a base, inclusive após queda da internet.
+   source.onopen=()=>{void refreshShared(false);};
+   source.addEventListener("change",()=>{void refreshShared(false);});
+  };
+  const onVisibility=()=>{
+   if(document.visibilityState==="visible"){connect();void refreshShared(false);}
+   else disconnect();
+  };
+  const onFocus=()=>{connect();if(!drawer)void refreshShared(false);};
+  connect();
+  // Verificação de segurança para navegadores sem SSE, cortes de conexão
+  // e atualizações que possam ocorrer enquanto uma gravação está em andamento.
   const timer=setInterval(()=>{
-   if(document.visibilityState==="visible"&&!drawer)refreshShared(false);
-  },12000);
-  const onFocus=()=>{if(!drawer)refreshShared(false);};
+   if(document.visibilityState==="visible"&&!drawer)void refreshShared(false);
+  },15000);
   window.addEventListener("focus",onFocus);
-  return ()=>{clearInterval(timer);window.removeEventListener("focus",onFocus);};
+  document.addEventListener("visibilitychange",onVisibility);
+  return ()=>{
+   disconnect();clearInterval(timer);
+   window.removeEventListener("focus",onFocus);
+   document.removeEventListener("visibilitychange",onVisibility);
+  };
  },[ready,drawer]);
  // Telefones e informações internas vêm da API protegida; nunca entram no armazenamento local.
  const privateUnitFields=new Set(["leader","leaderContact","coordinator","coordinatorContact","cnpj","cep","street","number","complement","administrativeName","churnCode"]);
