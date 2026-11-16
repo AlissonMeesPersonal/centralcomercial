@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-import {Mail,ShieldCheck,CheckCircle2,AlertCircle,RefreshCw,Send,ExternalLink} from "lucide-react";
+import {Mail,CheckCircle2,AlertCircle,RefreshCw,Send,ExternalLink} from "lucide-react";
 
 export default function EmailSettingsPanel(){
  const [state,setState]=useState({loading:true,provider:false,from:false,cron:false,configured:false,sender:null,error:""});
@@ -52,20 +52,8 @@ export default function EmailSettingsPanel(){
      <b className={item.ready?"cc-email-ready":"cc-email-awaiting"}>{item.ready?"Variável presente":"Pendente"}</b>
     </div>)}
   </div>
-  <div className="cc-email-help">
-   <ShieldCheck size={17}/><div><strong>Variáveis configuradas não significam e-mail habilitado</strong>
-    <p>Verifique um domínio remetente no Resend, configure a chave da API e o e-mail autorizado nas variáveis de ambiente de <strong>produção</strong> da Vercel. Nunca coloque a chave no GitHub ou no formulário da Central. Após configurar, faça um novo deploy para aplicar as variáveis.</p>
-    <p>A Central só consegue confirmar que as variáveis existem. A autorização do remetente e as permissões da chave precisam ser verificadas no Resend. Em caso de falha, consulte <a href="https://resend.com/logs" target="_blank" rel="noopener noreferrer">Resend → Logs</a> para o erro original.</p>
-    <p>Os e-mails de autenticação do Neon são separados destes lembretes. A rotina programada envia lembretes para amanhã e para hoje, conforme o horário de execução.</p>
-   </div>
-  </div>
-  {state.lastTest&&<div className={"cc-email-lasttest "+(state.lastTest.status==="sent"?"success":"failed")}>
-   {state.lastTest.status==="sent"?<CheckCircle2 size={16}/>:<AlertCircle size={16}/>}
-   <span>Último teste: <strong>{state.lastTest.status==="sent"?"Aceito pelo Resend":state.lastTest.status==="failed"?"Falhou":"Em processamento"}</strong>
-   {state.lastTest.provider_http_status?" · HTTP "+state.lastTest.provider_http_status:""}
-   {state.lastTest.provider_error_code?" · "+state.lastTest.provider_error_code:""}.
-   {state.lastTest.status==="failed"?" Consulte o motivo em Resend → Logs.":""}</span>
-  </div>}
+  {/* Falhas de testes antigos não são um alerta atual. O resultado de novos testes
+      continua aparecendo abaixo, inclusive quando houver erro. */}
   {feedback&&<p role={feedback.ok?"status":"alert"} className={"cc-email-message "+(feedback.ok?"success":"error")}>
    {feedback.ok?<CheckCircle2 size={17}/>:<AlertCircle size={17}/>}
    {feedback.text}
