@@ -6,9 +6,10 @@ import {
  Bell,Mail,Filter,Archive,BookOpen
 } from "lucide-react";
 import TeamAttendeePicker from "./TeamAttendeePicker";
+import MicrosoftCalendarPanel from "./MicrosoftCalendarPanel";
 import DateCalendarInput from "./DateCalendarInput";
 
-const KINDS={reuniao:"Reunião",evento:"Evento",treinamento:"Treinamento",visita:"Visita",outro:"Outro compromisso",prazo_demanda:"Prazo de demanda"};
+const KINDS={reuniao:"Reunião",evento:"Evento",treinamento:"Treinamento",visita:"Visita",outro:"Outro compromisso",prazo_demanda:"Prazo de demanda",microsoft:"Microsoft Teams"};
 const STATUSES={agendado:"Agendado",concluido:"Concluído",cancelado:"Arquivado"};
 const TZ="America/Sao_Paulo";
 const pad=x=>String(x).padStart(2,"0");
@@ -43,6 +44,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const [draft,setDraft]=useState(null),[saving,setSaving]=useState(false),[formError,setFormError]=useState("");
  const [tick,setTick]=useState(0),[kindFilter,setKindFilter]=useState("todos");
  const [selectedDay,setSelectedDay]=useState(null);
+ const [microsoftDetail,setMicrosoftDetail]=useState(null);
  const [showAllMonth,setShowAllMonth]=useState(true);
  useEffect(()=>{
   const refresh=()=>{if(document.visibilityState==="visible"&&!draft)setTick(n=>n+1);};
@@ -105,6 +107,9 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    const local=tasks.find(t=>t.id===entry.original.external_task_id);
    if(local){onOpenTask(local);return;}
   }
+  if(entry.original.microsoft_imported){
+   setMicrosoftDetail(entry.original);setFormError("");return;
+  }
   setDraft(toDraft(entry.original));setFormError("");
  }
  function dateToISOString(value){
@@ -153,6 +158,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    <div><span><UsersRound size={18}/> Convidados</span><strong>{new Set(state.events.flatMap(e=>e.attendees||[])).size}</strong></div>
    <div><span><Bell size={18}/> Próximos 7 dias</span><strong>{upcoming.length}</strong></div>
   </div>
+  <MicrosoftCalendarPanel canManageNetwork={state.canManageNetwork} onUpdated={()=>setTick(n=>n+1)}/>
   {alerts.length>0&&<div className="cc-agenda-alerts"><Bell size={17}/><div><strong>{alerts.length} compromisso(s) com prazo hoje ou amanhã</strong><p>{alerts.slice(0,2).map(x=>x.title).join(" · ")}</p></div></div>}
   <div className="cc-agenda-layout">
    <section className="panel cc-agenda-calendar">
@@ -198,6 +204,20 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
     <div className="cc-agenda-legend"><span><i className="cc-agenda-legend-dot event"/> Reuniões e eventos</span><span><i className="cc-agenda-legend-dot task"/> Prazos de demandas</span></div>
    </aside>
   </div>
+  {microsoftDetail&&<div className="cc-agenda-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMicrosoftDetail(null);}}>
+   <div className="cc-agenda-modal cc-ms-event-modal" role="dialog" aria-modal="true" aria-label="Compromisso Teams">
+    <div className="cc-agenda-modal-head"><div><div className="eyebrow">CALENDÁRIO MICROSOFT · SOMENTE LEITURA</div><h2>{microsoftDetail.title}</h2></div><button onClick={()=>setMicrosoftDetail(null)} aria-label="Fechar"><X size={20}/></button></div>
+    <div className="cc-agenda-modal-content">
+     <p><strong>Organizador da conexão:</strong> {microsoftDetail.owner_email}</p>
+     <p><strong>Início:</strong> {new Date(microsoftDetail.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</p>
+     <p><strong>Término:</strong> {new Date(microsoftDetail.ends_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</p>
+     {!microsoftDetail.is_private&&<><p><strong>Local:</strong> {microsoftDetail.location||"Não informado"}</p>
+     {microsoftDetail.join_url&&<p><a href={microsoftDetail.join_url} target="_blank" rel="noopener noreferrer">Abrir reunião no Microsoft Teams</a></p>}</>}
+     <p className="cc-op-note">Este evento foi importado da agenda Microsoft. Para alterar os horários ou a reunião, utilize a agenda original.</p>
+    </div>
+    <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setMicrosoftDetail(null)}>Fechar</button></div>
+   </div>
+  </div>}
   {draft&&<div className="cc-agenda-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setDraft(null);}}>
    <div className="cc-agenda-modal" role="dialog" aria-modal="true" aria-label={draft.id?"Editar compromisso":"Novo compromisso"}>
     <div className="cc-agenda-modal-head"><div><div className="eyebrow">CENTRAL COMERCIAL • AGENDA</div><h2>{draft.id?"Detalhes do compromisso":"Novo compromisso"}</h2></div><button onClick={()=>!saving&&setDraft(null)} aria-label="Fechar"><X size={20}/></button></div>
