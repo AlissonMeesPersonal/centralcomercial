@@ -45,6 +45,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const [tick,setTick]=useState(0),[kindFilter,setKindFilter]=useState("todos");
  const [selectedDay,setSelectedDay]=useState(null);
  const [microsoftDetail,setMicrosoftDetail]=useState(null);
+ const [dayList,setDayList]=useState(null);
  const [showAllMonth,setShowAllMonth]=useState(true);
  useEffect(()=>{
   const refresh=()=>{if(document.visibilityState==="visible"&&!draft)setTick(n=>n+1);};
@@ -98,9 +99,10 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const today=inBrazil(new Date()).slice(0,10);
  const upcoming=allEntries.filter(e=>e.day>=today&&e.day<=inBrazil(new Date(Date.now()+7*86400000)).slice(0,10)&&e.status==="agendado").slice(0,12);
  const alerts=upcoming.filter(e=>e.day<=inBrazil(new Date(Date.now()+86400000)).slice(0,10));
- const navigate=diff=>{const target=new Date(year,month+diff,1);setYear(target.getFullYear());setMonth(target.getMonth());setSelectedDay(null);};
+ const navigate=diff=>{const target=new Date(year,month+diff,1);setYear(target.getFullYear());setMonth(target.getMonth());setSelectedDay(null);setDayList(null);};
  const toToday=()=>{const d=new Date();setYear(d.getFullYear());setMonth(d.getMonth());setSelectedDay(today);};
- function openDate(date){setSelectedDay(date);setDraft(initialEvent(date));setFormError("");}
+ function openDate(date){setSelectedDay(date);setDayList(date);setFormError("");}
+ function newEventOn(date){setDayList(null);setDraft(initialEvent(date));setFormError("");}
  function openEntry(entry){
   if(entry.source==="task"){onOpenTask(entry.original);return;}
   if(entry.original.kind==="prazo_demanda"&&entry.original.external_task_id){
@@ -179,14 +181,14 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
        const date=d?dayKey(year,month+1,d):"";
        const entries=byDay.get(date)||[];
        return <div key={i} className={"cc-agenda-day"+(!d?" empty":"")+(date===today?" today":"")+(date===selectedDay?" selected":"")}>
-        {d&&<><button className="cc-agenda-day-number" type="button" onClick={()=>openDate(date)} title="Agendar compromisso neste dia">{d}</button>
-         <div className="cc-agenda-day-items">{entries.slice(0,3).map(e=><button key={e.id} className={"cc-agenda-chip "+e.kind+" "+e.status} title={e.title} onClick={()=>openEntry(e)}><span>{e.time}</span>{e.title}</button>)}
-          {entries.length>3&&<button className="cc-agenda-more" onClick={()=>setSelectedDay(date)}>+ {entries.length-3} compromisso(s)</button>}
+        {d&&<><button className="cc-agenda-day-number" type="button" onClick={()=>openDate(date)} title="Ver todos os compromissos deste dia">{d}</button>
+         <div className="cc-agenda-day-items">{entries.map(e=><button key={e.id} className={"cc-agenda-chip "+e.kind+" "+e.status} title={e.title} onClick={()=>openEntry(e)}><span>{e.time}</span>{e.title}</button>)}
+          {entries.length>0&&<button type="button" className="cc-agenda-more" onClick={()=>openDate(date)}>Ver lista completa ({entries.length})</button>}
          </div></>}
        </div>;
       })}
     </div>
-    <p className="cc-agenda-hint">Clique no número do dia para agendar. Selecione um compromisso para ver ou editar seus detalhes.</p>
+    <p className="cc-agenda-hint">Todos os compromissos são exibidos nos dias, com rolagem quando necessário. Clique na data para abrir a lista completa ou agendar.</p>
    </section>
    <aside className="panel cc-agenda-upcoming">
     <div className="cc-agenda-upcoming-heading"><h3>{selectedDay?"Agenda de "+futureLabel(selectedDay):showAllMonth?"Todos os compromissos do mês":"Próximos compromissos"}</h3>
@@ -204,6 +206,19 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
     <div className="cc-agenda-legend"><span><i className="cc-agenda-legend-dot event"/> Reuniões e eventos</span><span><i className="cc-agenda-legend-dot task"/> Prazos de demandas</span></div>
    </aside>
   </div>
+  {dayList&&<div className="cc-agenda-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setDayList(null);}}>
+   <div className="cc-agenda-modal cc-agenda-day-list-modal" role="dialog" aria-modal="true" aria-label={"Compromissos de "+futureLabel(dayList)}>
+    <div className="cc-agenda-modal-head"><div><div className="eyebrow">AGENDA COMPARTILHADA DA REDE</div><h2>Compromissos de {dayList.split("-").reverse().join("/")}</h2></div><button type="button" onClick={()=>setDayList(null)} aria-label="Fechar"><X size={20}/></button></div>
+    <div className="cc-agenda-modal-content">
+      <p className="cc-agenda-day-list-count">{(byDay.get(dayList)||[]).length} compromisso(s) neste dia, de todos os usuários autorizados.</p>
+      <div className="cc-agenda-day-list-entries">{(byDay.get(dayList)||[]).map(entry=><button key={entry.id} type="button" onClick={()=>{setDayList(null);openEntry(entry);}}>
+       <span className="cc-agenda-day-list-hour">{entry.time}</span><span><strong>{entry.title}</strong><small>{KINDS[entry.kind]||"Compromisso"}{entry.original?.owner_email?" · "+entry.original.owner_email:""}</small></span><ChevronRight size={16}/>
+      </button>)}</div>
+      {!(byDay.get(dayList)||[]).length&&<p>Não há compromissos cadastrados neste dia.</p>}
+    </div>
+    <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setDayList(null)}>Fechar</button><button className="btn" onClick={()=>newEventOn(dayList)}><Plus size={15}/> Novo compromisso neste dia</button></div>
+   </div>
+  </div>}
   {microsoftDetail&&<div className="cc-agenda-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMicrosoftDetail(null);}}>
    <div className="cc-agenda-modal cc-ms-event-modal" role="dialog" aria-modal="true" aria-label="Compromisso Teams">
     <div className="cc-agenda-modal-head"><div><div className="eyebrow">CALENDÁRIO MICROSOFT · SOMENTE LEITURA</div><h2>{microsoftDetail.title}</h2></div><button onClick={()=>setMicrosoftDetail(null)} aria-label="Fechar"><X size={20}/></button></div>
