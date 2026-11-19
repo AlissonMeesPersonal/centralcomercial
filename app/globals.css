@@ -1142,3 +1142,9 @@
  #cc-op-print .cc-op-summary small,#cc-op-print thead,#cc-op-print td:first-child{background:#ffdf12!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  #cc-op-print tr{break-inside:avoid}
 }
+
+/* Resumo único da rede no PDF de conversão */
+.cc-op-network-label{text-align:center;font-size:10px;font-weight:800;letter-spacing:.9px;margin:-2px 0 13px;color:#545e67}
+.cc-op-report-card .cc-op-print .cc-op-summary{margin:14px auto 18px;max-width:650px}
+.cc-op-report-card .cc-op-print table tbody tr:nth-child(even) td:not(:first-child){background:#f8f9fa}
+@media print{#cc-op-print .cc-op-network-label{text-align:center!important}#cc-op-print .cc-op-summary{page-break-inside:avoid}#cc-op-print table{font-size:11px}}
