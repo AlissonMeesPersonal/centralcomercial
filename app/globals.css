@@ -1216,3 +1216,21 @@
 }
 .cc-agenda-units-field .cc-agenda-unit-tools button{color:#995708!important}
 .cc-agenda-units-field .cc-agenda-unit-select>summary{color:#24313a!important}
+
+/* Integração Microsoft Teams */
+.cc-ms-panel{padding:18px 20px;display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.cc-ms-panel .section-title h3{display:flex;align-items:center;gap:8px}
+.cc-ms-privacy{display:flex;align-items:flex-start;gap:8px;padding:12px;border-radius:9px;background:#f5f7f9;font-size:12px;line-height:1.55;color:#52606b}
+.cc-ms-privacy svg{flex:0 0 auto}
+.cc-ms-connected{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.cc-ms-connected>div:first-child{display:flex;flex-direction:column;gap:4px}
+.cc-ms-connected small{font-size:11px;color:#71808e}
+.cc-ms-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cc-ms-admin{border-top:1px solid #e4e9ed;padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.cc-ms-admin>strong{font-size:12px}
+.cc-ms-account{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px;background:#f7f8fa;border-radius:7px;font-size:12px}
+.cc-ms-account>span{display:flex;flex-direction:column;gap:3px}
+.cc-ms-account small{font-size:10px;color:#6c7883}
+.cc-ms-event-modal{max-width:650px}
+.cc-agenda-chip.microsoft{border-left:3px solid #656ac5}
+@media(max-width:640px){.cc-ms-panel{padding:14px}.cc-ms-account{align-items:flex-start;flex-direction:column}}
