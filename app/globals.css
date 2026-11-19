@@ -1165,3 +1165,8 @@
 .cc-agenda-unit-tools button{border:0;background:none;color:#a56410;text-decoration:underline;font-size:11px;cursor:pointer}
 .cc-agenda-units-field>small{font-size:10px;color:#6d7780;margin-top:5px}
 @media(max-width:620px){.cc-agenda-unit-options{position:relative;box-shadow:none}.cc-agenda-unit-scroll{max-height:180px}}
+
+/* Lista mensal de compromissos com atualização independente do mês selecionado */
+.cc-agenda-list-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cc-agenda-list-controls button{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.cc-agenda-upcoming-body>span{overflow-wrap:anywhere}
