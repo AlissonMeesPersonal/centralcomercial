@@ -1170,3 +1170,49 @@
 .cc-agenda-list-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .cc-agenda-list-controls button{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .cc-agenda-upcoming-body>span{overflow-wrap:anywhere}
+
+/* Correção de contraste e inputs da seleção múltipla de unidades */
+.cc-agenda-units-field .cc-agenda-unit-select,
+.cc-agenda-units-field .cc-agenda-unit-options,
+.cc-agenda-units-field .cc-agenda-unit-scroll,
+.cc-agenda-units-field .cc-agenda-unit-option {
+ color:#24313a!important;
+ background-color:#ffffff;
+}
+.cc-agenda-units-field .cc-agenda-unit-option {
+ display:flex!important;
+ flex-direction:row!important;
+ align-items:center!important;
+ justify-content:flex-start;
+ gap:10px;
+ font-size:13px!important;
+ font-weight:500;
+ line-height:1.5;
+ min-height:38px;
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.cc-agenda-units-field .cc-agenda-unit-option:hover{background-color:#f2f5f7}
+.cc-agenda-units-field .cc-agenda-unit-all{font-weight:700}
+.cc-agenda-units-field .cc-agenda-unit-option input[type="checkbox"]{
+ -webkit-appearance:checkbox;
+ appearance:auto;
+ display:inline-block;
+ box-sizing:border-box;
+ width:16px!important;
+ min-width:16px!important;
+ max-width:16px!important;
+ height:16px!important;
+ min-height:16px!important;
+ margin:0!important;
+ padding:0!important;
+ border:0!important;
+ border-radius:3px;
+ background:transparent!important;
+ flex:0 0 16px!important;
+ vertical-align:middle;
+ accent-color:#e78b16;
+ box-shadow:none!important;
+}
+.cc-agenda-units-field .cc-agenda-unit-tools button{color:#995708!important}
+.cc-agenda-units-field .cc-agenda-unit-select>summary{color:#24313a!important}
