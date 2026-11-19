@@ -127,8 +127,8 @@ export default function OpportunityImporter({token="",onImported}){
   <p>Envie o Excel ou CSV do levantamento. Selecione o mês, confira as colunas e revise os totais antes de publicar.</p>
   <label className="field"><span>Arquivo Excel (.xlsx) ou CSV</span><input type="file" accept=".xlsx,.csv" onChange={loadFile}/></label>
   <button type="button" className="btn secondary" onClick={()=>{
-    const text="Data;Oportunidades;Vendas realizadas\\r\\n01/"+period.slice(5)+"/"+period.slice(0,4)+";73;32\\r\\n02/"+period.slice(5)+"/"+period.slice(0,4)+";326;122\\r\\n";
-    const url=URL.createObjectURL(new Blob(["\\uFEFF"+text],{type:"text/csv;charset=utf-8"}));
+    const text="Data;Oportunidades;Vendas realizadas\r\n01/"+period.slice(5)+"/"+period.slice(0,4)+";73;32\r\n02/"+period.slice(5)+"/"+period.slice(0,4)+";326;122\r\n";
+    const url=URL.createObjectURL(new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"}));
     const link=document.createElement("a");link.href=url;link.download="modelo-levantamento-"+period+".csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
    }}>Baixar modelo de planilha CSV</button>
   {file&&<div className="cc-op-mapping">
