@@ -16,7 +16,7 @@ function originOK(request){
 }
 function normalizeDaily(rows,period){
  if(!Array.isArray(rows)||rows.length<1||rows.length>31)throw Error("Informe de 1 a 31 dias do mês.");
- if(!/^\\d{4}-(0[1-9]|1[0-2])$/.test(period))throw Error("Mês inválido.");
+ if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(period))throw Error("Mês inválido.");
  const maxDays=new Date(Number(period.slice(0,4)),Number(period.slice(5)),0).getDate();
  const days=new Set();
  return rows.map(r=>{
