@@ -64,7 +64,7 @@ export default function MultifilialImporter({token="",onImported}){
    const response=await fetch("/api/opportunity-reports",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json",...(token?{"x-upload-token":token}:{})},body:JSON.stringify({action:"upload_multifilial",period,rows:parsed.rows,filename:file.name})});
    const result=await response.json();
    if(!response.ok)throw Error(result.error||"Não foi possível gravar o levantamento.");
-   setSuccess(result.units+" unidades importadas! O relatório de Vendas Multifiliais foi atualizado no Neon.");
+   setSuccess(result.units+" unidades importadas! O consolidado mensal de Vendas Multifiliais foi atualizado no Neon. Para calcular a conversão diária, também são necessários dados de oportunidades por dia.");
    onImported?.();
   }catch(err){setError(err.message||"Erro ao salvar.");}finally{setBusy(false);}
  }
@@ -76,7 +76,7 @@ export default function MultifilialImporter({token="",onImported}){
    <strong>Conferência antes de salvar</strong>
    <p>{parsed.rows.length} unidades · {fmt(parsed.totals.newSales)} novas · {fmt(parsed.totals.renewals)} renovações · {fmt(parsed.totals.totalSales)} vendas · {fmt(parsed.totals.totalLosses)} evasões · {fmt(parsed.totals.growth)} crescimento líquido.</p>
    <p>Esta importação atualiza apenas o levantamento multifiliais do mês escolhido. Os relatórios diários, demandas e demais meses continuam preservados.</p>
-   <button type="button" className="btn" disabled={busy} onClick={send}>{busy?"Importando…":"Confirmar importação e atualizar PDF"}</button>
+   <button type="button" className="btn" disabled={busy} onClick={send}>{busy?"Importando…":"Confirmar importação do consolidado mensal"}</button>
   </div>}
   {error&&<p role="alert" className="validation">{error}</p>}
   {success&&<p role="status" className="notice">{success}</p>}
