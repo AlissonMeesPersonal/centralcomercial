@@ -21,7 +21,7 @@ export async function GET(request){
   const sql=database();
   const managed=isManager(access.role);
   const events=await sql.query(
-   "SELECT e.id,e.kind,e.title,e.description,e.unit_id,e.location,e.starts_at,e.ends_at,e.owner_email,e.status,e.revision,e.external_task_id,e.created_at,COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM cc_calendar_attendees a WHERE a.event_id=e.id),ARRAY[]::text[]) AS attendees FROM cc_calendar_events e WHERE EXTRACT(YEAR FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(e.owner_email)=$4 OR EXISTS(SELECT 1 FROM cc_calendar_attendees a WHERE a.event_id=e.id AND lower(a.email)=$4)) ORDER BY e.starts_at ASC LIMIT 2000",
+   "SELECT e.id,e.kind,e.title,e.description,e.unit_id,e.unit_ids,e.location,e.starts_at,e.ends_at,e.owner_email,e.status,e.revision,e.external_task_id,e.created_at,COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM cc_calendar_attendees a WHERE a.event_id=e.id),ARRAY[]::text[]) AS attendees FROM cc_calendar_events e WHERE EXTRACT(YEAR FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(e.owner_email)=$4 OR EXISTS(SELECT 1 FROM cc_calendar_attendees a WHERE a.event_id=e.id AND lower(a.email)=$4)) ORDER BY e.starts_at ASC LIMIT 2000",
    [year,month,managed,access.email]
   );
   const members=await sql.query("SELECT name,email,role FROM cc_team_members WHERE status='active' ORDER BY name LIMIT 1000");
@@ -40,8 +40,8 @@ export async function POST(request){
   catch(e){return error(e.message,422);}
   const sql=database();
   const result=await sql.query(
-   "WITH new_event AS (INSERT INTO cc_calendar_events(kind,title,description,unit_id,location,starts_at,ends_at,owner_email,status) VALUES($1,$2,$3,$4,$5,$6::timestamptz,$7::timestamptz,$8,$9) RETURNING *), audience AS (INSERT INTO cc_calendar_attendees(event_id,email) SELECT new_event.id,a.email FROM new_event CROSS JOIN LATERAL unnest($10::text[]) a(email) ON CONFLICT DO NOTHING RETURNING email), audit AS (INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,after_data) SELECT id,$8,'created',revision,to_jsonb(new_event) FROM new_event RETURNING event_id) SELECT id,revision FROM new_event",
-   [payload.kind,payload.title,payload.description,payload.unitId,payload.location,payload.startsAt,payload.endsAt,access.email,payload.status,payload.attendees]
+   "WITH new_event AS (INSERT INTO cc_calendar_events(kind,title,description,unit_id,location,starts_at,ends_at,owner_email,status,unit_ids) VALUES($1,$2,$3,$4,$5,$6::timestamptz,$7::timestamptz,$8,$9,$11::text[]) RETURNING *), audience AS (INSERT INTO cc_calendar_attendees(event_id,email) SELECT new_event.id,a.email FROM new_event CROSS JOIN LATERAL unnest($10::text[]) a(email) ON CONFLICT DO NOTHING RETURNING email), audit AS (INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,after_data) SELECT id,$8,'created',revision,to_jsonb(new_event) FROM new_event RETURNING event_id) SELECT id,revision FROM new_event",
+   [payload.kind,payload.title,payload.description,payload.unitId,payload.location,payload.startsAt,payload.endsAt,access.email,payload.status,payload.attendees,payload.unitIds]
   );
   return respond({ok:true,id:result[0]?.id,revision:result[0]?.revision},201);
  }catch{return error("Não foi possível agendar o evento.",503);}
