@@ -1234,3 +1234,19 @@
 .cc-ms-event-modal{max-width:650px}
 .cc-agenda-chip.microsoft{border-left:3px solid #656ac5}
 @media(max-width:640px){.cc-ms-panel{padding:14px}.cc-ms-account{align-items:flex-start;flex-direction:column}}
+
+/* Calendário: todos os eventos por dia, sem esconder o quarto compromisso */
+.cc-agenda-day{min-height:118px;min-width:0;overflow:hidden;display:flex;flex-direction:column}
+.cc-agenda-day-items{flex:1;min-height:0;max-height:185px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;padding-right:3px}
+.cc-agenda-day-items .cc-agenda-chip{display:flex;width:100%;min-width:0}
+.cc-agenda-day-items .cc-agenda-more{position:sticky;bottom:0;width:100%;background:#fff;z-index:1;font-weight:650}
+.cc-agenda-day-list-modal{max-width:680px;width:min(680px,96vw)}
+.cc-agenda-day-list-count{color:#67737e;font-size:12px;margin:0 0 12px}
+.cc-agenda-day-list-entries{display:flex;flex-direction:column;gap:7px}
+.cc-agenda-day-list-entries>button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:1px solid #e1e6eb;background:#fff;color:#27333d;border-radius:9px;text-align:left;cursor:pointer}
+.cc-agenda-day-list-entries>button:hover{border-color:#eaa94f;background:#fffaf3}
+.cc-agenda-day-list-entries>button>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.cc-agenda-day-list-entries>button strong{font-size:13px;overflow-wrap:anywhere}
+.cc-agenda-day-list-entries>button small{font-size:11px;color:#6b7783;overflow-wrap:anywhere}
+.cc-agenda-day-list-hour{color:#b36b11;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+@media(max-width:680px){.cc-agenda-day-items{max-height:130px}.cc-agenda-day-list-modal .cc-agenda-modal-footer{flex-wrap:wrap}}
