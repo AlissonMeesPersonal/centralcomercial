@@ -122,7 +122,7 @@ export default function Home({accessRole}) {
   }
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar")setNav("Calendário");}},[]);
+ useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar"||new URLSearchParams(window.location.search).get("section")==="calendar"||new URLSearchParams(window.location.search).has("ms"))setNav("Calendário");}},[]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  async function commercialRequest(payload){
   sharedBusyRef.current++;
