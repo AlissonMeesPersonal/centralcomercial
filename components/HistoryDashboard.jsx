@@ -55,6 +55,14 @@ export default function HistoryDashboard({units=[]}){
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
  const [items,setItems]=useState([]),[total,setTotal]=useState(0);
  const [summary,setSummary]=useState({concluido:0,em_andamento:0,arquivada:0});
+ useEffect(()=>{
+  const refresh=()=>{if(document.visibilityState==="visible")setTick(n=>n+1);};
+  const timer=setInterval(refresh,12000);
+  window.addEventListener("focus",refresh);
+  const onVisibility=()=>{if(document.visibilityState==="visible")refresh();};
+  document.addEventListener("visibilitychange",onVisibility);
+  return ()=>{clearInterval(timer);window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",onVisibility);};
+ },[]);
  const unitMap=useMemo(()=>new Map(units.map(u=>[u.id,u.name])),[units]);
  const query=new URLSearchParams({
   page:String(page),q:filters.q,module:filters.module,status:filters.status,start:filters.start,end:filters.end
