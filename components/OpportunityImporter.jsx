@@ -70,6 +70,8 @@ export default function OpportunityImporter({token="",onImported}){
    const ext=f.name.split(".").pop()?.toLowerCase();
    if(!["xlsx","csv"].includes(ext))throw Error("Use uma planilha .xlsx ou .csv.");
    const rows=ext==="xlsx"?await readSheet(f):parseCSV(await f.text());
+   if(norm(rows[0]?.[0])==="unidade"&&norm(rows[0]?.[1])==="nome"&&norm(rows[0]?.[2]).includes("vendas"))
+    throw Error("Este arquivo é Vendas Multifiliais, não um relatório diário. Use a aba Vendas Multifiliais · Excel original. Não é necessário mapear colunas nem preencher dados manualmente.");
    if(rows.length<2||rows.length>50000)throw Error("A planilha precisa ter cabeçalho e até 50 mil linhas.");
    const headerRow=rows.findIndex(row=>{
     const h=row.map(norm);
@@ -126,11 +128,6 @@ export default function OpportunityImporter({token="",onImported}){
  return <div className="cc-op-import">
   <p>Envie o Excel ou CSV do levantamento. Selecione o mês, confira as colunas e revise os totais antes de publicar.</p>
   <label className="field"><span>Arquivo Excel (.xlsx) ou CSV</span><input type="file" accept=".xlsx,.csv" onChange={loadFile}/></label>
-  <button type="button" className="btn secondary" onClick={()=>{
-    const text="Data;Oportunidades;Vendas realizadas\r\n01/"+period.slice(5)+"/"+period.slice(0,4)+";73;32\r\n02/"+period.slice(5)+"/"+period.slice(0,4)+";326;122\r\n";
-    const url=URL.createObjectURL(new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"}));
-    const link=document.createElement("a");link.href=url;link.download="modelo-levantamento-"+period+".csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-   }}>Baixar modelo de planilha CSV</button>
   {file&&<div className="cc-op-mapping">
    <label>Mês do relatório <input type="month" value={period} onChange={e=>{setPeriod(e.target.value);setPreview([]);}}/></label>
    {[[ "date","Data / dia"],["opportunities","Oportunidades"],["sales","Vendas realizadas"]].map(([key,label])=>
