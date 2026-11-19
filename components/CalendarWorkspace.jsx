@@ -43,6 +43,21 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const [draft,setDraft]=useState(null),[saving,setSaving]=useState(false),[formError,setFormError]=useState("");
  const [tick,setTick]=useState(0),[kindFilter,setKindFilter]=useState("todos");
  const [selectedDay,setSelectedDay]=useState(null);
+ const [showAllMonth,setShowAllMonth]=useState(true);
+ useEffect(()=>{
+  const refresh=()=>{if(document.visibilityState==="visible"&&!draft)setTick(n=>n+1);};
+  const timer=setInterval(refresh,10000);
+  window.addEventListener("focus",refresh);
+  window.addEventListener("26fit:calendar-updated",refresh);
+  const visibility=()=>{if(document.visibilityState==="visible")refresh();};
+  document.addEventListener("visibilitychange",visibility);
+  return ()=>{
+   clearInterval(timer);
+   window.removeEventListener("focus",refresh);
+   window.removeEventListener("26fit:calendar-updated",refresh);
+   document.removeEventListener("visibilitychange",visibility);
+  };
+ },[draft]);
  useEffect(()=>{
   const controller=new AbortController();
   setState(s=>({...s,loading:true,error:""}));
@@ -120,7 +135,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
   finally{setSaving(false);}
  }
  function canEdit(entry){return state.canManageNetwork||entry.owner_email?.toLowerCase()===state.currentEmail.toLowerCase();}
- const filteredNext=selectedDay?allEntries.filter(e=>e.day===selectedDay):upcoming;
+ const filteredNext=selectedDay?allEntries.filter(e=>e.day===selectedDay):showAllMonth?allEntries.filter(e=>e.source==="event"):upcoming;
  const heading=monthStart.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
  return <section className="cc-agenda">
   <div className="heading-row cc-agenda-heading">
@@ -168,11 +183,17 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
     <p className="cc-agenda-hint">Clique no número do dia para agendar. Selecione um compromisso para ver ou editar seus detalhes.</p>
    </section>
    <aside className="panel cc-agenda-upcoming">
-    <div className="cc-agenda-upcoming-heading"><h3>{selectedDay?"Agenda de "+futureLabel(selectedDay):"Próximos compromissos"}</h3>{selectedDay&&<button onClick={()=>setSelectedDay(null)}>Mostrar próximos</button>}</div>
+    <div className="cc-agenda-upcoming-heading"><h3>{selectedDay?"Agenda de "+futureLabel(selectedDay):showAllMonth?"Todos os compromissos do mês":"Próximos compromissos"}</h3>
+    <div className="cc-agenda-list-controls">
+     <button type="button" onClick={()=>setTick(n=>n+1)} title="Buscar compromissos no Neon"><RefreshCcw size={15}/> Atualizar</button>
+     {selectedDay?<button type="button" onClick={()=>setSelectedDay(null)}>Ver todos</button>:<button type="button" onClick={()=>setShowAllMonth(x=>!x)}>{showAllMonth?"Próximos 7 dias":"Mês inteiro"}</button>}
+    </div>
+   </div>
     {!filteredNext.length?<div className="cc-agenda-empty"><CalendarDays size={25}/><strong>Agenda livre</strong><p>{selectedDay?"Nenhum compromisso para este dia.":"Não há atividades nos próximos sete dias."}</p></div>:
       <div className="cc-agenda-upcoming-list">{filteredNext.map(e=><button key={e.id} className="cc-agenda-upcoming-item" onClick={()=>openEntry(e)}>
        <span className={"cc-agenda-upcoming-icon "+e.kind}>{e.kind==="prazo_demanda"?<ClipboardList size={16}/>:<CalendarDays size={16}/>}</span>
-       <span className="cc-agenda-upcoming-body"><small>{futureLabel(e.day)} · {e.time}</small><strong>{e.title}</strong><span>{KINDS[e.kind]||"Compromisso"}</span></span>
+       <span className="cc-agenda-upcoming-body"><small>{futureLabel(e.day)} · {e.time}</small><strong>{e.title}</strong><span>{KINDS[e.kind]||"Compromisso"}{e.source==="event"&&e.original.owner_email?" · "+e.original.owner_email:""}</span>
+       {e.source==="event"&&<span>{(e.original.unit_ids||[]).length===0?"Toda a rede":(e.original.unit_ids||[]).map(id=>unitMap.get(id)?.name||"Unidade").join(", ")}</span>}</span>
       </button>)}</div>}
     <div className="cc-agenda-legend"><span><i className="cc-agenda-legend-dot event"/> Reuniões e eventos</span><span><i className="cc-agenda-legend-dot task"/> Prazos de demandas</span></div>
    </aside>
