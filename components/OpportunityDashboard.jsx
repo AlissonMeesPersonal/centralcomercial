@@ -19,7 +19,7 @@ function printable(report){
 export default function OpportunityDashboard(){
  const [data,setData]=useState({reports:[],links:[],multifilialReports:[]}),[error,setError]=useState("");
  const [busy,setBusy]=useState(false),[newLabel,setNewLabel]=useState("Assistente da Andressa");
- const [generated,setGenerated]=useState(""),[period,setPeriod]=useState(""),[type,setType]=useState("daily");
+ const [generated,setGenerated]=useState(""),[period,setPeriod]=useState(""),[type,setType]=useState("multifilial");
  const load=useCallback(async()=>{
   try{
    const response=await fetch("/api/opportunity-reports",{cache:"no-store",credentials:"same-origin"});
@@ -45,13 +45,13 @@ export default function OpportunityDashboard(){
  const multi=multiReports.find(x=>x.period===period)||multiReports[0];
  const money=n=>Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
  return <div className="cc-op-module">
-  <div className="heading-row"><div><div className="eyebrow">COMERCIAL • IMPORTAÇÃO EM LOTE</div><h1>Levantamento comercial</h1><p>Consolidado diário de todas as unidades: oportunidades, vendas, tendência e conversão.</p></div>
+  <div className="heading-row"><div><div className="eyebrow">COMERCIAL • IMPORTAÇÃO EM LOTE</div><h1>Levantamento comercial</h1><p>Importe a planilha original da rede para gerar um PDF consolidado de vendas, sem cadastrar unidade por unidade.</p></div>
    <button className="btn secondary" onClick={load}><RefreshCcw size={15}/> Atualizar</button></div>
-  <div className="toolbar"><div className="tab-list"><button className={type==="daily"?"active":""} onClick={()=>setType("daily")}>Conversão diária da rede</button><button className={type==="multifilial"?"active":""} onClick={()=>setType("multifilial")}>Arquivo de origem · Multifiliais</button></div></div>
+  <div className="toolbar"><div className="tab-list"><button className={type==="multifilial"?"active":""} onClick={()=>setType("multifilial")}>Vendas Multifiliais · Excel original</button><button className={type==="daily"?"active":""} onClick={()=>setType("daily")}>Conversão diária (requer oportunidades)</button></div></div>
   <div className="cc-op-grid">
    <section className="panel">
     <div className="section-title"><div><h3><Upload size={17}/> Importar levantamento</h3><p>Disponível para administração</p></div></div>
-    {type==="multifilial"?<><MultifilialImporter onImported={load}/><p className="cc-op-note">Este arquivo fornece o total de vendas por unidade, mas não contém oportunidades nem datas diárias. Ele não é usado sozinho para calcular conversão. Para gerar o PDF diário, importe também um arquivo com data, oportunidades e vendas.</p></>:<OpportunityImporter onImported={load}/>}
+    {type==="multifilial"?<><MultifilialImporter onImported={load}/><p className="cc-op-note">O Excel informa vendas acumuladas por unidade. Ao importar, o sistema soma toda a rede e gera um PDF com os totais reais, sem inventar conversões diárias. Para converter por dia, é necessária outra exportação que traga oportunidades e datas.</p></>:<OpportunityImporter onImported={load}/>}
    </section>
    <section className="panel">
     <div className="section-title"><div><h3><Link2 size={17}/> Link exclusivo de envio</h3><p>A assistente não precisa acessar as outras áreas da plataforma.</p></div></div>
@@ -66,11 +66,39 @@ export default function OpportunityDashboard(){
    </section>
   </div>
   {type==="multifilial"&&<section className="panel cc-op-report-card">
-    <div className="section-title"><div><h3>Arquivo de origem · Vendas Multifiliais</h3><p>Conferência do total da rede, sem incluir filiais individualmente no PDF de conversão.</p></div></div>
-    {!multi?<div className="empty">Nenhuma planilha multifilial importada.</div>:<div className="cc-op-preview">
-      <strong>Consolidado da rede — {multi.period.slice(5)+"/"+multi.period.slice(0,4)}</strong>
-      <p>{fmt(multi.rows?.length)} unidades · {fmt(multi.totals.newSales)} vendas novas · {fmt(multi.totals.renewals)} renovações · {fmt(multi.totals.totalSales)} vendas totais · {fmt(multi.totals.totalLosses)} evasões.</p>
-      <p><strong>Conversão não calculada:</strong> este arquivo não informa oportunidades ou dias. Para produzir o PDF de conversão mostrado no exemplo, use a aba Conversão diária da rede com a planilha de oportunidades e vendas por data.</p>
+   <div className="section-title"><div><h3><FileText size={18}/> PDF consolidado de vendas da rede</h3>
+    <p>Geração automática com os dados reais da planilha Vendas Multifiliais, sem separar unidades.</p></div>
+    <div className="cc-op-report-actions">
+     <select aria-label="Mês do relatório de vendas" value={multi?.period||""} onChange={e=>setPeriod(e.target.value)}>
+     {multiReports.map(r=><option key={r.period} value={r.period}>{r.period.slice(5)+"/"+r.period.slice(0,4)}</option>)}</select>
+     <button className="btn secondary" disabled={!multi} onClick={()=>window.print()}><Download size={15}/> Gerar PDF</button>
+    </div>
+   </div>
+   {!multi?<div className="empty">Selecione a planilha Vendas Multifiliais (.xlsx) acima, escolha o mês e confirme a importação para liberar o PDF.</div>:
+    <div id="cc-op-print" className="cc-op-print">
+      <div className="cc-op-print-heading"><span className="cc-op-logo"><strong>26</strong><em>fit</em></span><span>academia eficiente</span></div>
+      <h2>VENDAS CONSOLIDADAS DA REDE — {multi.period.slice(5)+"/"+multi.period.slice(0,4)}</h2>
+      <p className="cc-op-network-label">TODAS AS {multi.rows?.length||0} UNIDADES · CONSOLIDADO MENSAL</p>
+      <div className="cc-op-summary">
+       <div><small>VENDAS NOVAS</small><strong>{fmt(multi.totals.newSales)}</strong></div>
+       <div><small>RENOVAÇÕES</small><strong>{fmt(multi.totals.renewals)}</strong></div>
+       <div><small>VENDAS TOTAIS</small><strong>{fmt(multi.totals.totalSales)}</strong></div>
+       <div><small>CRESCIMENTO LÍQUIDO</small><strong>{fmt(multi.totals.growth)}</strong></div>
+      </div>
+      <table><thead><tr><th>INDICADOR</th><th>QUANTIDADE</th></tr></thead>
+       <tbody>
+        <tr><td>Vendas novas</td><td>{fmt(multi.totals.newSales)}</td></tr>
+        <tr><td>Renovações</td><td>{fmt(multi.totals.renewals)}</td></tr>
+        <tr><td>Total de vendas</td><td>{fmt(multi.totals.totalSales)}</td></tr>
+        <tr><td>Cancelamentos</td><td>{fmt(multi.totals.cancellations)}</td></tr>
+        <tr><td>Não renovados</td><td>{fmt(multi.totals.nonRenewals)}</td></tr>
+        <tr><td>Evasões totais</td><td>{fmt(multi.totals.totalLosses)}</td></tr>
+        <tr><td>Crescimento líquido</td><td>{fmt(multi.totals.growth)}</td></tr>
+        <tr><td>Receita total de vendas</td><td>{money(multi.totals.totalRevenue)}</td></tr>
+        <tr><td>Receita de evasões</td><td>{money(multi.totals.totalLossRevenue)}</td></tr>
+       </tbody></table>
+      <p className="cc-op-note"><strong>Observação:</strong> esta exportação não contém oportunidades nem datas diárias. Portanto, conversão diária, acumulado de oportunidades e tendência diária não são calculados neste PDF.</p>
+      <p className="cc-op-note">Fonte: {multi.filename} · Atualizado em {new Date(multi.imported_at).toLocaleString("pt-BR")} · Consolidado de {multi.rows?.length||0} unidades.</p>
     </div>}
   </section>}
   {type==="daily"&&  <section className="panel cc-op-report-card">
