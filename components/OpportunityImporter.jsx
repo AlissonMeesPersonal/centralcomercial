@@ -1,6 +1,6 @@
 "use client";
 import {useState} from "react";
-import readXlsxFile from "read-excel-file";
+import {readSheet} from "read-excel-file/browser";
 
 function splitCSV(text){
  const rows=[],row=[];let field="",quoted=false;
@@ -69,7 +69,7 @@ export default function OpportunityImporter({token="",onImported}){
   try{
    const ext=f.name.split(".").pop()?.toLowerCase();
    if(!["xlsx","csv"].includes(ext))throw Error("Use uma planilha .xlsx ou .csv.");
-   const rows=ext==="xlsx"?await readXlsxFile(f):parseCSV(await f.text());
+   const rows=ext==="xlsx"?await readSheet(f):parseCSV(await f.text());
    if(rows.length<2||rows.length>50000)throw Error("A planilha precisa ter cabeçalho e até 50 mil linhas.");
    const headerRow=rows.findIndex(row=>{
     const h=row.map(norm);
