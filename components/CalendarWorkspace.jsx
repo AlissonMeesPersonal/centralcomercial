@@ -21,13 +21,13 @@ function inBrazil(value){
 function formatHour(value){return inBrazil(value).slice(11);}
 function initialEvent(date){
  const today=date||inBrazil(new Date()).slice(0,10);
- return {id:null,revision:null,kind:"reuniao",title:"",description:"",unitId:"",
+ return {id:null,revision:null,kind:"reuniao",title:"",description:"",unitId:"",unitIds:[],
   location:"",startsLocal:today+"T09:00",endsLocal:today+"T10:00",
   attendees:[],status:"agendado"};
 }
 function toDraft(event){
  return {id:event.id,revision:event.revision,kind:event.kind,title:event.title,
-  description:event.description||"",unitId:event.unit_id||"",location:event.location||"",
+  description:event.description||"",unitId:event.unit_id||"",unitIds:Array.isArray(event.unit_ids)?event.unit_ids:(event.unit_id?[event.unit_id]:[]),location:event.location||"",
   startsLocal:inBrazil(event.starts_at),endsLocal:inBrazil(event.ends_at),
   attendees:event.attendees||[],status:event.status};
 }
@@ -103,7 +103,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
   setSaving(true);setFormError("");
   try{
    const request={
-    kind:draft.kind,title:draft.title.trim(),description:draft.description||"",unitId:draft.unitId||null,
+    kind:draft.kind,title:draft.title.trim(),description:draft.description||"",unitId:draft.unitIds?.length===1?draft.unitIds[0]:null,unitIds:draft.unitIds||[],
     location:draft.location||"",startsAt:dateToISOString(draft.startsLocal),
     endsAt:dateToISOString(draft.endsLocal),attendees:draft.attendees||[],status:draft.status
    };
@@ -187,7 +187,17 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
       <label className="cc-agenda-field"><span>Título *</span><input required maxLength={160} value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} placeholder="Ex.: Reunião de resultados da rede"/></label>
       <div className="cc-agenda-form-pair">
        <label className="cc-agenda-field"><span>Tipo de compromisso</span><select value={draft.kind} onChange={e=>setDraft(d=>({...d,kind:e.target.value}))} disabled={draft.kind==="prazo_demanda"}>{Object.entries(KINDS).filter(([kind])=>kind!=="prazo_demanda"||draft.kind==="prazo_demanda").map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-       <label className="cc-agenda-field"><span>Unidade</span><select value={draft.unitId} onChange={e=>setDraft(d=>({...d,unitId:e.target.value}))}><option value="">Toda a rede (gestão)</option>{units.filter(u=>!u.demo&&u.type!=="Matriz").map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+       <div className="cc-agenda-field cc-agenda-units-field"><span>Unidades</span>
+        <details className="cc-agenda-unit-select">
+         <summary>{!draft.unitIds?.length?"Toda a rede (gestão)":draft.unitIds.length===1?(units.find(u=>u.id===draft.unitIds[0])?.name||"1 unidade selecionada"):draft.unitIds.length+" unidades selecionadas"}</summary>
+         <div className="cc-agenda-unit-options">
+          <label className="cc-agenda-unit-option cc-agenda-unit-all"><input type="checkbox" checked={!draft.unitIds?.length} onChange={()=>setDraft(d=>({...d,unitIds:[],unitId:""}))}/> Toda a rede (gestão)</label>
+          <div className="cc-agenda-unit-tools"><button type="button" onClick={()=>setDraft(d=>({...d,unitIds:units.filter(u=>!u.demo&&u.type!=="Matriz").map(u=>u.id),unitId:""}))}>Selecionar todas individualmente</button><button type="button" onClick={()=>setDraft(d=>({...d,unitIds:[],unitId:""}))}>Limpar seleção</button></div>
+          <div className="cc-agenda-unit-scroll">{units.filter(u=>!u.demo&&u.type!=="Matriz").map(u=><label key={u.id} className="cc-agenda-unit-option"><input type="checkbox" checked={draft.unitIds?.includes(u.id)||false} onChange={e=>setDraft(d=>({...d,unitIds:e.target.checked?[...(d.unitIds||[]),u.id]:(d.unitIds||[]).filter(id=>id!==u.id),unitId:""}))}/>{u.name}</label>)}</div>
+         </div>
+        </details>
+        <small>{!draft.unitIds?.length?"Aplicável a toda a rede.":draft.unitIds.length+" unidade(s) vinculada(s) ao compromisso."}</small>
+       </div>
       </div>
       <div className="cc-agenda-form-pair">
        <label className="cc-agenda-field"><span>Início *</span><DateCalendarInput type="datetime-local" ariaLabel="Início do compromisso" value={draft.startsLocal} required onChange={e=>setDraft(d=>({...d,startsLocal:e.target.value}))}/></label>
