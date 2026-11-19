@@ -39,11 +39,12 @@ export async function GET(request){
   const access=await getAccess();
   if(!admin(access))return fail("Acesso restrito à administração.",403);
   const sql=database();
-  const [reports,links]=await Promise.all([
+  const [reports,links,multifilialReports]=await Promise.all([
    sql.query("SELECT to_char(period,'YYYY-MM') AS period,daily,filename,imported_by,imported_at,revision FROM cc_opportunity_reports ORDER BY period DESC LIMIT 36"),
-   sql.query("SELECT left(token_hash,12) AS id,label,created_by,created_at,expires_at,revoked_at,upload_count FROM cc_opportunity_upload_links ORDER BY created_at DESC LIMIT 40")
+   sql.query("SELECT left(token_hash,12) AS id,label,created_by,created_at,expires_at,revoked_at,upload_count FROM cc_opportunity_upload_links ORDER BY created_at DESC LIMIT 40"),
+   sql.query("SELECT to_char(period,'YYYY-MM') AS period,rows,totals,filename,imported_by,imported_at,revision FROM cc_multifilial_reports ORDER BY period DESC LIMIT 36")
   ]);
-  return reply({reports,links});
+  return reply({reports,links,multifilialReports});
  }catch(e){console.error("opportunity GET failed",e?.code||"unknown");return fail("Não foi possível carregar os levantamentos.",503);}
 }
 export async function POST(request){
@@ -53,6 +54,43 @@ export async function POST(request){
   const body=await request.json().catch(()=>null);
   if(!body||typeof body!=="object")return fail("Solicitação inválida.",400);
   const sql=database();
+  if(body.action==="upload_multifilial"){
+   const owner=await linkOwner(request);
+   let actor=owner?.label;
+   if(!owner){
+    const access=await getAccess();
+    if(!admin(access))return fail("Link inválido, expirado ou acesso não autorizado.",403);
+    actor=access.email;
+   }
+   const period=String(body.period||"");
+   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(period))return fail("Selecione o mês de referência.",422);
+   const input=body.rows;
+   if(!Array.isArray(input)||input.length<1||input.length>300)return fail("O arquivo deve conter de 1 a 300 unidades.",422);
+   const fields=["newSales","renewals","totalSales","cancellations","nonRenewals","totalLosses","growth","newRevenue","renewalRevenue","totalRevenue","cancelRevenue","nonRenewalRevenue","totalLossRevenue"];
+   const seen=new Set(),normalized=[];
+   for(const item of input){
+    const name=String(item?.name||"").trim(),code=Number(item?.code);
+    if(!name||name.length>180||!Number.isInteger(code)||code<1||code>9999||seen.has(code))return fail("Nomes ou códigos de unidades inválidos ou repetidos.",422);
+    seen.add(code);
+    const clean={code,name};
+    for(const key of fields){
+     const n=Number(item[key]);
+     if(!Number.isFinite(n)||Math.abs(n)>1e12||(key!=="growth"&&n<0))return fail("Há valores inválidos na unidade "+name+".",422);
+     clean[key]=n;
+    }
+    if(clean.newSales+clean.renewals!==clean.totalSales||clean.cancellations+clean.nonRenewals!==clean.totalLosses||clean.newSales-clean.totalLosses!==clean.growth)
+     return fail("Totais de quantidade inconsistentes em "+name+".",422);
+    normalized.push(clean);
+   }
+   const totals={};for(const field of fields)totals[field]=normalized.reduce((sum,row)=>sum+row[field],0);
+   const filename=String(body.filename||"Vendas Multifiliais.xlsx").slice(0,180);
+   const result=await sql.query(
+    "INSERT INTO cc_multifilial_reports(period,rows,totals,filename,imported_by) VALUES(to_date($1||'-01','YYYY-MM-DD'),$2::jsonb,$3::jsonb,$4,$5) ON CONFLICT(period) DO UPDATE SET rows=excluded.rows,totals=excluded.totals,filename=excluded.filename,imported_by=excluded.imported_by,imported_at=now(),revision=cc_multifilial_reports.revision+1 RETURNING revision",
+    [period,JSON.stringify(normalized),JSON.stringify(totals),filename,actor]
+   );
+   if(owner)await sql.query("UPDATE cc_opportunity_upload_links SET upload_count=upload_count+1 WHERE token_hash=$1",[owner.tokenHash]);
+   return reply({ok:true,units:normalized.length,totals,revision:result[0].revision});
+  }
   if(body.action==="upload"){
    const owner=await linkOwner(request);
    let actor=owner?.label;
