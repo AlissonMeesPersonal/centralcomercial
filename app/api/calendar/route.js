@@ -24,8 +24,12 @@ export async function GET(request){
    "SELECT e.id,e.kind,e.title,e.description,e.unit_id,e.unit_ids,e.location,e.starts_at,e.ends_at,e.owner_email,e.status,e.revision,e.external_task_id,e.created_at,COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM cc_calendar_attendees a WHERE a.event_id=e.id),ARRAY[]::text[]) AS attendees FROM cc_calendar_events e WHERE EXTRACT(YEAR FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(e.owner_email)=$4 OR EXISTS(SELECT 1 FROM cc_calendar_attendees a WHERE a.event_id=e.id AND lower(a.email)=$4)) ORDER BY e.starts_at ASC LIMIT 2000",
    [year,month,managed,access.email]
   );
+  const microsoftEvents=await sql.query(
+   "SELECT m.graph_id AS id,'microsoft'::text AS kind,m.title,''::text AS description,NULL::text AS unit_id,ARRAY[]::text[] AS unit_ids,m.location,m.join_url,m.starts_at,m.ends_at,m.owner_email,'agendado'::text AS status,1::integer AS revision,NULL::text AS external_task_id,m.updated_at AS created_at,ARRAY[]::text[] AS attendees,true AS microsoft_imported,m.is_private FROM cc_microsoft_calendar_events m WHERE EXTRACT(YEAR FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(m.owner_email)=$4) ORDER BY m.starts_at LIMIT 2000",
+   [year,month,managed,access.email]
+  );
   const members=await sql.query("SELECT name,email,role FROM cc_team_members WHERE status='active' ORDER BY name LIMIT 1000");
-  return respond({events,members,canManageNetwork:managed,currentEmail:access.email,timezone:"America/Sao_Paulo",emailReady:Boolean(process.env.RESEND_API_KEY&&process.env.AUTH_EMAIL_FROM&&process.env.CRON_SECRET)});
+  return respond({events:[...events,...microsoftEvents],members,canManageNetwork:managed,currentEmail:access.email,timezone:"America/Sao_Paulo",emailReady:Boolean(process.env.RESEND_API_KEY&&process.env.AUTH_EMAIL_FROM&&process.env.CRON_SECRET)});
  }catch{return error("Não foi possível consultar a agenda.",503);}
 }
 export async function POST(request){
