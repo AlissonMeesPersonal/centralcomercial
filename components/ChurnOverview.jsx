@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import {Activity,ArrowRight,ArrowUpRight,Building2,RefreshCw,TrendingDown,TrendingUp,AlertCircle} from "lucide-react";
 
 const nf=new Intl.NumberFormat("pt-BR");
@@ -12,10 +12,16 @@ const monthLabel=value=>{
 };
 const shortMonth=value=>monthLabel(value).split(" de ")[0].slice(0,3).toUpperCase();
 const pct=value=>value===null||!Number.isFinite(value)?"Não informado":rateFormat.format(value)+"%";
+const progressEase=t=>{
+ const value=Math.min(1,Math.max(0,t));
+ return (1-Math.cos(Math.PI*value))/2;
+};
 
 export default function ChurnOverview({onOpen}){
  const [reload,setReload]=useState(0);
  const [result,setResult]=useState({loading:true,data:null,error:""});
+ const chartRef=useRef(null);
+ const [animation,setAnimation]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();
   setResult(prev=>({...prev,loading:true,error:""}));
@@ -36,8 +42,57 @@ export default function ChurnOverview({onOpen}){
  const change=latest&&data?.previous?.churnPct!=null&&latest.churnPct!=null
   ?latest.churnPct-data.previous.churnPct:null;
  const maxBar=useMemo(()=>Math.max(1,...trend.map(x=>Number(x.churnPct)||0)),[trend]);
+ // A animação só começa quando o painel entra na tela e os dados chegaram.
+ // Cada barra inicia alguns milissegundos após a anterior. A taxa principal
+ // e a movimentação fazem contagem progressiva, sem modificar valores no Neon.
+ const stagger=220;
+ const barDuration=3000;
+ const totalDuration=barDuration+Math.max(0,trend.length-1)*stagger;
+ const animatedMs=animation*totalDuration;
+ const mainProgress=progressEase(animatedMs/3200);
+ const barProgress=index=>progressEase((animatedMs-index*stagger)/barDuration);
+ useEffect(()=>{
+  if(!latest||result.loading)return;
+  let frame=0,observer=null,active=true,started=false;
+  const element=chartRef.current;
+  if(!element)return;
+  const begin=()=>{
+   if(started||!active)return;
+   started=true;
+   if(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches){
+    setAnimation(1);
+    return;
+   }
+   const total=3000+Math.max(0,trend.length-1)*220;
+   let start=null;
+   const draw=time=>{
+    if(!active)return;
+    if(start===null)start=time;
+    const progress=Math.min(1,(time-start)/total);
+    setAnimation(progress);
+    if(progress<1)frame=requestAnimationFrame(draw);
+   };
+   frame=requestAnimationFrame(draw);
+  };
+  setAnimation(0);
+  if(typeof IntersectionObserver==="function"){
+   observer=new IntersectionObserver(entries=>{
+    if(entries.some(entry=>entry.isIntersecting)){
+     observer.disconnect();
+     begin();
+    }
+   },{threshold:.08});
+   observer.observe(element);
+  }else begin();
+  return ()=>{
+   active=false;
+   if(observer)observer.disconnect();
+   cancelAnimationFrame(frame);
+  };
+ },[latest?.month,result.loading,data?.scope,trend.length,reload]);
 
- return <section className="cc-overview-churn" aria-label="Resumo do churn comercial">
+
+ return <section ref={chartRef} className="cc-overview-churn" aria-label="Resumo do churn comercial">
   <div className="cc-overview-churn-head">
    <div className="cc-overview-churn-heading">
     <span className="cc-overview-churn-icon"><Activity size={18}/></span>
@@ -63,11 +118,11 @@ export default function ChurnOverview({onOpen}){
    <div className="cc-overview-churn-grid">
     <div className="cc-overview-rate">
      <span className="cc-overview-rate-caption">Taxa de churn no mês</span>
-     <div className="cc-overview-rate-number">{pct(latest.churnPct)}</div>
+     <div className="cc-overview-rate-number" aria-label={pct(latest.churnPct)}>{pct(latest.churnPct==null?null:latest.churnPct*mainProgress)}</div>
      <div className={"cc-overview-variation "+(change===null?"flat":change<0?"down":change>0?"up":"flat")}>
       {change===null?"Sem mês anterior para comparar":<>
        {change<0?<TrendingDown size={15}/>:change>0?<TrendingUp size={15}/>:null}
-       <strong>{change>0?"+":""}{pointsFormat.format(change)} p.p.</strong>
+       <strong>{change>0?"+":""}{pointsFormat.format(change*mainProgress)} p.p.</strong>
        <span>em relação ao mês anterior</span>
       </>}
      </div>
@@ -76,10 +131,10 @@ export default function ChurnOverview({onOpen}){
     <div className="cc-overview-movements">
      <h4>Movimentação de alunos</h4>
      <div className="cc-overview-movements-grid">
-      <div><span><span className="cc-overview-mini-dot green"/> Entradas</span><strong>{nf.format(latest.entries)}</strong></div>
-      <div><span><span className="cc-overview-mini-dot red"/> Saídas</span><strong>{nf.format(latest.exits)}</strong></div>
+      <div><span><span className="cc-overview-mini-dot green"/> Entradas</span><strong>{nf.format(Math.round((latest.entries||0)*mainProgress))}</strong></div>
+      <div><span><span className="cc-overview-mini-dot red"/> Saídas</span><strong>{nf.format(Math.round((latest.exits||0)*mainProgress))}</strong></div>
       <div><span><span className="cc-overview-mini-dot orange"/> Saldo do mês</span>
-       <strong className={latest.netChange>=0?"cc-overview-positive":"cc-overview-negative"}>{latest.netChange>0?"+":""}{nf.format(latest.netChange)}</strong></div>
+       <strong className={latest.netChange>=0?"cc-overview-positive":"cc-overview-negative"}>{latest.netChange>0?"+":""}{nf.format(Math.round((latest.netChange||0)*mainProgress))}</strong></div>
      </div>
      <p>{data.scope==="rede"?"Totais do rodapé do último relatório importado.":"Dados das unidades atribuídas ao seu perfil."}</p>
     </div>
@@ -87,9 +142,9 @@ export default function ChurnOverview({onOpen}){
      <div className="cc-overview-block-head"><h4>Churn nos últimos meses</h4><span>{trend.length} competências</span></div>
      <div className="cc-overview-bars" role="img" aria-label={"Evolução mensal do churn: "+trend.map(x=>shortMonth(x.month)+" "+pct(x.churnPct)).join(", ")}>
       {trend.map((x,i)=><div className="cc-overview-bar" key={x.month}>
-       <span className="cc-overview-bar-number">{pct(x.churnPct)}</span>
+       <span className="cc-overview-bar-number">{pct(x.churnPct==null?null:x.churnPct*barProgress(i))}</span>
        <div className="cc-overview-bar-track"><span className={i===trend.length-1?"current":""}
-        style={{height:((x.churnPct||0)>0?Math.max(4,100*x.churnPct/maxBar):0)+"%"}}/></div>
+        style={{height:((x.churnPct||0)>0?Math.max(4,100*x.churnPct/maxBar)*barProgress(i):0)+"%"}}/></div>
        <span className="cc-overview-bar-month">{shortMonth(x.month)}</span>
       </div>)}
      </div>
@@ -97,9 +152,9 @@ export default function ChurnOverview({onOpen}){
     <div className="cc-overview-attention">
      <div className="cc-overview-block-head"><h4>Maiores taxas por unidade</h4><Building2 size={16}/></div>
      <div className="cc-overview-attention-list">
-      {data.highlights?.length?data.highlights.map(unit=><div key={unit.unitId} className="cc-overview-attention-item">
+      {data.highlights?.length?data.highlights.map((unit,index)=><div key={unit.unitId} className="cc-overview-attention-item">
        <div><strong>{unit.name}</strong><small>Churn {String(unit.code).padStart(2,"0")} · Base: {nf.format(unit.base)}</small></div>
-       <b>{pct(unit.churnPct)}</b>
+       <b>{pct(unit.churnPct==null?null:unit.churnPct*progressEase((animatedMs-index*170)/2900))}</b>
       </div>):<p>Sem unidades com base suficiente neste mês.</p>}
      </div>
      <small className="cc-overview-attention-note">Comparação de unidades com pelo menos 50 alunos na base inicial.</small>
