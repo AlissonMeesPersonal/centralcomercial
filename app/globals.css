@@ -1432,6 +1432,26 @@
  background:linear-gradient(90deg,#f6a743,#e9872d);
  min-width:3px;transition:width .2s ease
 }
+/* Black26: animação de entrada e atualização progressiva dos resultados */
+.cc-black-daily-track>.cc-black-daily-fill{
+ width:0;
+ min-width:0;
+ transition-property:width,background-color;
+ transition-duration:1150ms,280ms;
+ transition-timing-function:cubic-bezier(.18,.8,.22,1),ease;
+ will-change:width;
+}
+.cc-black-daily-row:hover .cc-black-daily-fill{
+ background:linear-gradient(90deg,#f9b75e,#ed7920);
+}
+.cc-black-daily-row:hover .cc-black-daily-total{
+ border-color:#eab276;
+}
+@media(prefers-reduced-motion:reduce){
+ .cc-black-daily-track>.cc-black-daily-fill{
+  transition:none!important;
+ }
+}
 .cc-black-graph .cc-black-note{margin-top:15px}
 @media(max-width:720px){
  .cc-black-daily-total{font-size:14px!important;padding:4px 9px}
