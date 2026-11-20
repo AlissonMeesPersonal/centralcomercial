@@ -80,10 +80,12 @@ export async function GET(request) {
       } catch (e) {
         failed++;
         console.error("Push remoto falhou", e?.code || "send_failed");
-        await sql.query(
-          "DELETE FROM cc_push_deliveries WHERE subscription_id = $1 AND event_key = $2 AND starts_at = $3",
-          [sub.id, key, TEST_TIME],
-        ).catch(() => {});
+        await sql
+          .query(
+            "DELETE FROM cc_push_deliveries WHERE subscription_id = $1 AND event_key = $2 AND starts_at = $3",
+            [sub.id, key, TEST_TIME],
+          )
+          .catch(() => {});
       }
     }
 
@@ -93,6 +95,9 @@ export async function GET(request) {
     );
   } catch (e) {
     console.error("Teste remoto indisponível", e?.code || "db_unavailable");
-    return Response.json({ error: "Não foi possível testar as notificações." }, { status: 503, headers: noStore });
+    return Response.json(
+      { error: "Não foi possível testar as notificações." },
+      { status: 503, headers: noStore },
+    );
   }
 }
