@@ -486,7 +486,9 @@ export default function ReminderCenter({ onOpenReminder }) {
             <div className="cc-reminder-emblem">
               <CalendarDays size={29} />
             </div>
-            <p className="cc-reminder-kicker">{active.demo ? "Teste de notificação" : "Está começando agora"}</p>
+            <p className="cc-reminder-kicker">
+              {active.demo ? "Teste de notificação" : "Está começando agora"}
+            </p>
             <h2>{active.title}</h2>
             <p className="cc-reminder-hour">
               <Clock3 size={16} /> {dateTime(active.startsAt)}
@@ -513,7 +515,10 @@ export default function ReminderCenter({ onOpenReminder }) {
               </button>
             </div>
             <p className="cc-reminder-foot">
-              <ShieldCheck size={14} /> {active.demo ? "Apenas teste · Nenhum compromisso criado" : "Aviso único por compromisso · Horário de Brasília"}
+              <ShieldCheck size={14} />{" "}
+              {active.demo
+                ? "Apenas teste · Nenhum compromisso criado"
+                : "Aviso único por compromisso · Horário de Brasília"}
             </p>
           </section>
         </div>

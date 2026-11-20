@@ -9172,7 +9172,10 @@ td small {
   background: linear-gradient(135deg, #fff9ef 0%, #fff2e1 100%);
   color: #313b44;
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
 }
 .cc-alert-try:hover {
   background: #ffeed5;
@@ -9214,6 +9217,10 @@ td small {
   color: #b57535;
 }
 @media (prefers-reduced-motion: reduce) {
-  .cc-alert-try { transition: none; }
-  .cc-alert-try:hover { transform: none; }
+  .cc-alert-try {
+    transition: none;
+  }
+  .cc-alert-try:hover {
+    transform: none;
+  }
 }

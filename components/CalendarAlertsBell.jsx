@@ -157,7 +157,9 @@ export default function CalendarAlertsBell({ tasks = [], pending = 0, onCalendar
               window.dispatchEvent(new Event("26fit:test-calendar-notifications"));
             }}
           >
-            <span className="cc-alert-try-icon"><BellRing size={19} /></span>
+            <span className="cc-alert-try-icon">
+              <BellRing size={19} />
+            </span>
             <span className="cc-alert-try-copy">
               <strong>Testar avisos agora</strong>
               <small>Simule uma reunião, sem criar eventos</small>
