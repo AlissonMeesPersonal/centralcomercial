@@ -1349,3 +1349,67 @@
  .cc-black-source-actions{display:flex;flex-direction:column;align-items:stretch}
  .cc-black-source-actions input{flex:none;width:100%}
 }
+
+/* Calendário mensal 26fit: prévias claras, sem scroll interno nos dias */
+.cc-agenda-month-scroll{max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.cc-agenda-calendar .cc-agenda-day{
+ height:182px;min-height:182px;padding:8px 7px 9px;gap:5px;
+ background:#fff;overflow:hidden
+}
+.cc-agenda-calendar .cc-agenda-day.empty{background:#fafbfc}
+.cc-agenda-calendar .cc-agenda-day.today{background:#fff8f3}
+.cc-agenda-day-header{display:flex;justify-content:space-between;align-items:center;gap:3px;min-width:0;flex-shrink:0}
+.cc-agenda-day-header .cc-agenda-day-number{font-size:12px;line-height:1.25;padding:5px 7px}
+.cc-agenda-day-count{
+ display:inline-flex;justify-content:center;align-items:center;white-space:nowrap;
+ font-size:10px;font-weight:720;color:#647583;background:#eef2f5;
+ border:0;border-radius:5px;padding:5px 6px;min-width:0;cursor:pointer
+}
+.cc-agenda-day-count:hover{background:#e2e9ed;color:#263a4c}
+.cc-agenda-calendar .cc-agenda-day-items{
+ display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;
+ max-height:none!important;overflow:visible!important;padding-right:0!important
+}
+.cc-agenda-event-preview{
+ width:100%;min-width:0;min-height:0;flex:0 0 auto;display:flex;flex-direction:column;
+ align-items:flex-start;gap:2px;text-align:left;padding:6px 7px;
+ border:1px solid #e2ebf0;border-left:3px solid #82a9c2;border-radius:6px;
+ background:#f2f7fa;color:#263e4c;cursor:pointer;overflow:hidden
+}
+.cc-agenda-event-preview:hover{background:#e8f2f8;border-color:#a6c7da}
+.cc-agenda-event-time{display:block;color:#48748f;font-size:10px;font-weight:790;line-height:1.2;font-variant-numeric:tabular-nums}
+.cc-agenda-event-title{
+ width:100%;min-width:0;display:-webkit-box;-webkit-box-orient:vertical;
+ -webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere;
+ white-space:normal;text-overflow:ellipsis;font-size:11px;line-height:1.25;font-weight:680
+}
+.cc-agenda-event-preview.prazo_demanda{background:#fff4e9;border-color:#f3e0cb;border-left-color:#e9a04d;color:#7f542a}
+.cc-agenda-event-preview.prazo_demanda .cc-agenda-event-time{color:#a96e32}
+.cc-agenda-event-preview.microsoft{background:#f3f1ff;border-color:#e1dcf7;border-left-color:#8583c5;color:#504d85}
+.cc-agenda-event-preview.microsoft .cc-agenda-event-time{color:#7773b2}
+.cc-agenda-event-preview.concluido{background:#ecf8ef;border-color:#d4edda;border-left-color:#63ad77;color:#346e46}
+.cc-agenda-event-preview.cancelado{background:#f3f4f5;border-color:#e5e8eb;border-left-color:#aab2b8;color:#7e858b}
+.cc-agenda-calendar .cc-agenda-day-items .cc-agenda-more{
+ display:flex;align-items:center;justify-content:space-between;
+ width:100%;flex:0 0 auto;position:static;min-height:25px;margin-top:auto;
+ padding:4px 7px;background:#f2f4f7;color:#465d6e;border:1px solid #e2e7ec;
+ border-radius:6px;font-size:10px;line-height:1.25;font-weight:780;cursor:pointer
+}
+.cc-agenda-calendar .cc-agenda-day-items .cc-agenda-more:hover{background:#e8edf2;border-color:#cfd8df}
+.cc-agenda-day-list-modal .cc-agenda-day-list-entries>button:focus-visible,
+.cc-agenda-event-preview:focus-visible,
+.cc-agenda-day-count:focus-visible{outline:2px solid #d98635;outline-offset:2px}
+@media(max-width:900px){
+ .cc-agenda-month-scroll .cc-agenda-weekdays,
+ .cc-agenda-month-scroll .cc-agenda-grid{min-width:735px}
+ .cc-agenda-calendar .cc-agenda-day{height:170px;min-height:170px}
+ .cc-agenda-calendar .cc-agenda-day-number{font-size:12px;padding:4px}
+ .cc-agenda-day-count{font-size:9px;padding:4px}
+ .cc-agenda-event-title{font-size:10px}
+}
+@media(max-width:550px){
+ .cc-agenda-month-scroll .cc-agenda-weekdays,
+ .cc-agenda-month-scroll .cc-agenda-grid{min-width:735px}
+ .cc-agenda-calendar .cc-agenda-day{height:170px;min-height:170px}
+ .cc-agenda-calendar .cc-agenda-hint{font-size:11px}
+}
