@@ -15,7 +15,8 @@
     "@neondatabase/auth": "0.6.0-beta",
     "@neondatabase/auth-ui": "0.4.0-beta",
     "@neondatabase/serverless": "1.2.0",
-    "read-excel-file": "9.3.14"
+    "read-excel-file": "9.3.14",
+    "exceljs": "^4.4.0"
   },
   "engines": {
     "node": ">=20.9.0"
