@@ -9,6 +9,7 @@ import HistoryDashboard from "./HistoryDashboard";
 import CalendarWorkspace from "./CalendarWorkspace";
 import EmailSettingsPanel from "./EmailSettingsPanel";
 import OpportunityDashboard from "./OpportunityDashboard";
+import BlackFridayDashboard from "./BlackFridayDashboard";
 import DateCalendarInput from "./DateCalendarInput";
 import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
@@ -42,6 +43,7 @@ const NAV=[
  ["Visão geral",LayoutDashboard],
  ["Demandas",ClipboardList],
  ["Campanhas",Megaphone],
+ ["Black Friday • Leads",Megaphone],
  ["Levantamento comercial",FileText],
  ["Calendário",CalendarDays],
  ["Unidades",Building2],
@@ -631,7 +633,7 @@ export default function Home({accessRole}) {
   <aside className={"sidebar "+(mobile?"mobile-open":"")}>
    <div className="brand"><div className="brand-logo"><img src="/logo_v2.png" alt="26fit" width="100" height="54"/></div><div className="brand-copy"><strong>Central</strong><small>Comercial</small></div><button className="close-mobile" onClick={()=>setMobile(false)}><X size={18}/></button></div>
    <div className="sidebar-caption">ESPAÇO DE TRABALHO</div>
-   <nav>{NAV.filter(([name])=>(name!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&(name!=="Histórico"||["developer","admin","gestor"].includes(accessRole))&&(name!=="Levantamento comercial"||["developer","admin"].includes(accessRole))&&(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
+   <nav>{NAV.filter(([name])=>(name!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&(name!=="Histórico"||["developer","admin","gestor"].includes(accessRole))&&(name!=="Levantamento comercial"||["developer","admin"].includes(accessRole))&&(name!=="Black Friday • Leads"||["developer","admin","gestor"].includes(accessRole))&&(!["Gerenciar unidades","Configurações","Equipe"].includes(name)||["developer","admin","gestor"].includes(accessRole))).map(([name,Icon])=><button key={name} className={"nav-item "+(nav===name?"active":"")} onClick={()=>moveNav(name)}><Icon size={18}/><span>{name}</span>{name==="Demandas"&&<b>{openCount}</b>}</button>)}</nav>
    <div className="sidebar-bottom"><div className="sidebar-footer"><strong>26fit • Central Comercial</strong><small>Planejamento e execução da rede</small></div></div>
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
@@ -672,6 +674,7 @@ export default function Home({accessRole}) {
     {view==="Por unidade"&&<div className="unit-grid">{units.map(u=><section key={u.id} className="panel"><div className="section-title"><div><h3>{u.name}</h3><p>{u.type} · {u.state}</p></div><Tag>{filtered.filter(t=>t.unitId===u.id).length}</Tag></div>{filtered.filter(t=>t.unitId===u.id).map(t=><TaskCard compact drag={false} key={t.id} item={t} units={units} onOpen={openTask}/>)}{!filtered.some(t=>t.unitId===u.id)&&<div className="empty small">Nenhuma entrega encontrada.</div>}</section>)}</div>}
    </>}
    {nav==="Levantamento comercial"&&["developer","admin"].includes(accessRole)&&<OpportunityDashboard/>}
+   {nav==="Black Friday • Leads"&&["developer","admin","gestor"].includes(accessRole)&&<BlackFridayDashboard/>}
     {nav==="Campanhas"&&<>
     <div className="heading-row"><div><div className="eyebrow">PLANEJAMENTO DA REDE</div><h1>Campanhas</h1><p>Uma estratégia central, com entregas e metas locais.</p></div>{["developer","admin","gestor"].includes(accessRole)&&<Button onClick={newCampaign}><Plus size={17}/> Nova campanha</Button>}</div>
     <div className="campaign-grid">{campaigns.map(c=>{const t=campaignTotal(c);const linked=tasks.filter(d=>d.campaignId===c.id);return <article key={c.id} className="campaign-card"><div className="card-meta"><Tag tone="neutral">Versão {c.version}</Tag>{c.archived&&<Tag>Arquivada</Tag>}{c.demo&&<Tag>Demo</Tag>}</div><h3>{c.title}</h3><p>{c.description}</p><div className="campaign-metrics"><div><small>Unidades participantes</small><strong>{c.units.length}</strong></div><div><small>Entregas vinculadas</small><strong>{linked.length}</strong></div><div><small>Resultado ({c.indicator})</small><strong>{t.n?t.sum:"Não informado"}</strong></div></div><div className="card-end"><button className="text-button" onClick={()=>{setDetailCamp(c.id);setNav("Campanhas");}}>Abrir campanha <ArrowRight size={16}/></button>{["developer","admin","gestor"].includes(accessRole)&&<button className="icon-button" onClick={()=>editCampaign(c)} title="Editar campanha"><Pencil size={17}/></button>}</div></article>})}{campaigns.length===0&&<div className="empty">Nenhuma campanha cadastrada.</div>}</div>
