@@ -22,9 +22,9 @@ export async function GET(request){
   if(!granted.refresh_token)throw Error("A Microsoft não forneceu permissão de atualização offline.");
   const me=await graph("/me?$select=id,displayName,mail,userPrincipalName",granted.access_token);
   const owner=access.email;
-  await database()("INSERT INTO cc_microsoft_calendar_connections(owner_email,microsoft_user_id,microsoft_email,microsoft_name,refresh_token_encrypted) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_email) DO UPDATE SET microsoft_user_id=excluded.microsoft_user_id,microsoft_email=excluded.microsoft_email,microsoft_name=excluded.microsoft_name,refresh_token_encrypted=excluded.refresh_token_encrypted,status='connected',last_error=NULL",[owner,me.id,me.mail||me.userPrincipalName||"",me.displayName||"",encrypt(granted.refresh_token)]);
+  await database().query("INSERT INTO cc_microsoft_calendar_connections(owner_email,microsoft_user_id,microsoft_email,microsoft_name,refresh_token_encrypted) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_email) DO UPDATE SET microsoft_user_id=excluded.microsoft_user_id,microsoft_email=excluded.microsoft_email,microsoft_name=excluded.microsoft_name,refresh_token_encrypted=excluded.refresh_token_encrypted,status='connected',last_error=NULL",[owner,me.id,me.mail||me.userPrincipalName||"",me.displayName||"",encrypt(granted.refresh_token)]);
   // Falha de importação não invalida a conexão: fica disponível para tentar novamente.
-  try{const rows=await database()("SELECT * FROM cc_microsoft_calendar_connections WHERE owner_email=$1",[owner]);await performSync(rows[0]);outcome="connected";}
+  try{const rows=await database().query("SELECT * FROM cc_microsoft_calendar_connections WHERE owner_email=$1",[owner]);await performSync(rows[0]);outcome="connected";}
   catch{outcome="sync_pending";}
  }catch(e){console.error("Microsoft calendar OAuth failure",String(e.message).slice(0,120));outcome="error";}
  result.searchParams.set("ms",outcome);result.searchParams.set("section","calendar");
