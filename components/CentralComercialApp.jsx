@@ -1112,8 +1112,7 @@ export default function Home({ accessRole }) {
     }
   }
   async function deleteTask(target) {
-    if (!target || !canManageTasks || !tasksRef.current.some((t) => t.id === target.id))
-      return;
+    if (!target || !canManageTasks || !tasksRef.current.some((t) => t.id === target.id)) return;
 
     if (
       !window.confirm(
@@ -2066,7 +2065,10 @@ export default function Home({ accessRole }) {
                           </td>
                           <td>{percent(ratio(t.actual, t.goal))}</td>
                           {canManageTasks && (
-                            <td className="cc-task-table-actions" onClick={(event) => event.stopPropagation()}>
+                            <td
+                              className="cc-task-table-actions"
+                              onClick={(event) => event.stopPropagation()}
+                            >
                               <button
                                 type="button"
                                 className="cc-task-quick-action"
@@ -3437,15 +3439,15 @@ export default function Home({ accessRole }) {
             </div>
             <div className="drawer-footer">
               {tasks.some((t) => t.id === editing.id) && canManageTasks && (
-                  <Button kind="danger" onClick={() => deleteTask(editing)}>
-                    <Trash2 size={16} /> Excluir demanda
-                  </Button>
-                )}
+                <Button kind="danger" onClick={() => deleteTask(editing)}>
+                  <Trash2 size={16} /> Excluir demanda
+                </Button>
+              )}
               {tasks.some((t) => t.id === editing.id) && canManageTasks && (
-                  <Button kind="secondary" onClick={() => toggleTaskArchived(editing)}>
-                    <Archive size={16} /> {editing.archived ? "Restaurar" : "Arquivar"}
-                  </Button>
-                )}
+                <Button kind="secondary" onClick={() => toggleTaskArchived(editing)}>
+                  <Archive size={16} /> {editing.archived ? "Restaurar" : "Arquivar"}
+                </Button>
+              )}
               <Button kind="secondary" onClick={() => setDrawer(null)}>
                 Cancelar
               </Button>

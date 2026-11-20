@@ -9250,7 +9250,9 @@ td small {
   font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
-  transition: background-color 0.14s ease, border-color 0.14s ease;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease;
 }
 .cc-task-quick-action:hover {
   background: #f0f4f6;
