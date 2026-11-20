@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/microsoft-calendar",
-      "schedule": "*/5 * * * *"
+      "schedule": "15 12 * * *"
     }
   ]
 }
