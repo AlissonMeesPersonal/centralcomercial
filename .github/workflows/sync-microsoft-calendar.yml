@@ -1,0 +1,40 @@
+name: Sincronizacao Microsoft Teams (5 minutos)
+
+on:
+  schedule:
+    # Fora do minuto zero para reduzir atrasos nas filas do GitHub Actions.
+    - cron: "2/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: central-comercial-microsoft-calendar
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Importar compromissos das contas conectadas
+        shell: bash
+        env:
+          SYNC_URL: https://centralcomercial-eta.vercel.app/api/cron/microsoft-calendar
+        run: |
+          set -euo pipefail
+          # A assinatura do GitHub comprova qual workflow está chamando.
+          # Nenhum secret do Teams ou do Neon é enviado ao GitHub.
+          audience="$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SYNC_URL"],safe=""))')"
+          oidc_response="$(curl --fail-with-body --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}")"
+          oidc_token="$(python3 -c 'import json,sys;print(json.load(sys.stdin)["value"])' <<< "$oidc_response")"
+          # O JWT vale poucos minutos; a Central valida emissor, assinatura,
+          # branch main, repositório, workflow e audiência.
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
+            --max-time 75 -H "Authorization: Bearer ${oidc_token}" \
+            -H "Accept: application/json" "${SYNC_URL}"
+          echo
