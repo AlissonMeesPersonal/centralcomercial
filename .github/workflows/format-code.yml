@@ -55,6 +55,12 @@ jobs:
         run: npm install --no-audit --no-fund --ignore-scripts
 
       - name: Verificar build da Central Comercial
+        # Valores exclusivamente locais para a compilação. Não têm acesso a
+        # sessão, banco ou outros serviços reais da Central Comercial.
+        env:
+          NEON_AUTH_COOKIE_SECRET: "ci-validation-only-cookie-secret-never-production-2026"
+          NEON_AUTH_BASE_URL: "https://auth-ci.example.invalid"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/centralcomercial"
         run: npm run build
 
       - name: Publicar código formatado, apenas se o build passou
