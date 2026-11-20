@@ -41,7 +41,11 @@ export async function GET(request){
   // Falha de importação não invalida a conexão: fica disponível para tentar novamente.
   try{const rows=await database().query("SELECT * FROM cc_microsoft_calendar_connections WHERE owner_email=$1",[owner]);await performSync(rows[0]);outcome="connected";}
   catch{outcome="sync_pending";}
- }catch(e){console.error("Microsoft calendar OAuth failure",stage,String(e.message).slice(0,160));outcome="error";result.searchParams.set("ms_reason",stage);
+ }catch(e){
+  console.error("Microsoft calendar OAuth failure",stage,String(e.message).slice(0,160));
+  outcome="error";
+  result.searchParams.set("ms_reason",stage);
+ }
  result.searchParams.set("ms",outcome);result.searchParams.set("section","calendar");
  const redirect=NextResponse.redirect(result);
  const cleanup={httpOnly:true,secure:true,sameSite:"lax",path:"/api/microsoft-calendar",maxAge:0};
