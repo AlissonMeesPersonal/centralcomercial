@@ -38,13 +38,13 @@ export default function MicrosoftCalendarPanel({onUpdated,canManageNetwork=false
   }catch(e){setError(e.message);}finally{setBusy(false);}
  }
  return <section className="panel cc-ms-panel">
-  <div className="section-title"><div><h3><CalendarDays size={17}/> Integração Microsoft Teams</h3><p>Importe a agenda vinculada ao Teams sem alterar as reuniões originais.</p></div></div>
+  <div className="section-title"><div><h3><CalendarDays size={17}/> Integração Microsoft Teams</h3><p>Importe sua agenda e mantenha os compromissos atualizados automaticamente, aproximadamente a cada 5 minutos.</p></div></div>
   <p className="cc-ms-privacy"><ShieldCheck size={16}/> Ao conectar, os seus eventos do calendário Microsoft serão visíveis à administração da Central. Eventos marcados como privados aparecem somente como “Compromisso privado”, sem detalhes.</p>
   {status===null?<p>Verificando conexão Microsoft…</p>:!status.configured?
     <p className="validation">Integração preparada. Falta registrar o aplicativo Microsoft e configurar MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET e MICROSOFT_TOKEN_ENCRYPTION_KEY na Vercel.</p>:
    status.connected?<div className="cc-ms-connected">
     <div><strong>Conta conectada: {status.connection?.name||status.connection?.email}</strong>
-     <small>{status.connection?.email||""} · Última sincronização: {status.connection?.lastSyncedAt?new Date(status.connection.lastSyncedAt).toLocaleString("pt-BR"):"pendente"}</small></div>
+     <small>{status.connection?.email||""} · Última sincronização: {status.connection?.lastSyncedAt?new Date(status.connection.lastSyncedAt).toLocaleString("pt-BR"):"pendente"} · Atualização automática habilitada</small></div>
     <div className="cc-ms-actions"><button className="btn secondary" disabled={busy} onClick={()=>action("sync")}><RefreshCcw size={15}/> Sincronizar agora</button><button className="btn secondary" disabled={busy} onClick={()=>action("disconnect")}><Unplug size={15}/> Desvincular</button></div>
    </div>:<button className="btn" onClick={()=>window.location.assign("/api/microsoft-calendar/connect")}><Link2 size={15}/> Conectar conta Microsoft / Teams</button>}
   {canManageNetwork&&status?.connections?.length>0&&<div className="cc-ms-admin">
