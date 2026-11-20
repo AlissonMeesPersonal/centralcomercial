@@ -1273,3 +1273,63 @@
  .cc-agenda-action-footer{justify-content:flex-start}
  .cc-agenda-action-footer .btn{flex:1 1 auto;justify-content:center}
 }
+
+/* Central Comercial 26fit • Black Friday / Leads */
+.cc-black{display:flex;flex-direction:column;gap:20px;min-width:0}
+.cc-black .section-title h3{display:flex;align-items:center;gap:8px}
+.cc-black-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.cc-black-kpi{display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid #e3e8ec;border-radius:13px;background:#fff;padding:18px}
+.cc-black-kpi small{color:#687783;font-size:11px;font-weight:700}
+.cc-black-kpi strong{color:#20282e;font-size:25px;letter-spacing:-.7px;font-variant-numeric:tabular-nums}
+.cc-black-layout{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;align-items:start}
+.cc-black-layout>.panel,.cc-black>.panel{min-width:0}
+.cc-black p{font-size:12px;line-height:1.55;color:#67737e}
+.cc-black-import input[type=file]{width:100%;padding:11px;border:1px dashed #b7c1cc;border-radius:9px;max-width:100%;background:#fafbfc}
+.cc-black-mapping{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.cc-black-mapping label,.cc-black-filters label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#52616d}
+.cc-black-mapping select,.cc-black-filters select,.cc-black-filters input,.cc-black-source-actions input{width:100%;min-width:0;padding:10px 11px;border:1px solid #dfe5ea;border-radius:8px;background:#fff;color:#26333c;font-size:12px}
+.cc-black-mapping .btn{align-self:end}
+.cc-black-review{display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:#fff8ee;border:1px solid #f8d9ae;border-radius:10px;padding:12px;margin-top:13px}
+.cc-black-review strong{font-size:13px}
+.cc-black-review p{margin:0}
+.cc-black-bars{display:flex;flex-direction:column;gap:11px}
+.cc-black-bar{display:grid;grid-template-columns:52px minmax(0,1fr) 46px;align-items:center;gap:10px;font-size:11px}
+.cc-black-bar>span{color:#60707f;font-weight:650}
+.cc-black-bar>div{height:11px;overflow:hidden;border-radius:20px;background:#edf0f4}
+.cc-black-bar i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#ffb34b,#ed752f);min-width:2px}
+.cc-black-bar b{text-align:right;font-variant-numeric:tabular-nums}
+.cc-black-note{font-size:11px!important;color:#86909a!important;margin-top:12px}
+.cc-black-table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.cc-black table{min-width:740px;width:100%;border-collapse:collapse;font-size:12px}
+.cc-black table th{padding:12px 10px;text-align:left;background:#f5f7f9;color:#53616e;font-weight:750;border-bottom:1px solid #e3e7ed;white-space:nowrap}
+.cc-black table td{padding:12px 10px;border-bottom:1px solid #e9edf1;color:#29343c;vertical-align:middle}
+.cc-black table td small{display:block;font-size:10px;color:#7e8993;line-height:1.5;margin-top:4px}
+.cc-black-export{display:inline-flex;align-items:center;gap:6px;font-size:11px!important;text-decoration:none;white-space:nowrap}
+.cc-black-filters{display:grid;grid-template-columns:minmax(150px,1fr) minmax(160px,.6fr) minmax(190px,1fr);gap:12px;margin-bottom:15px}
+.cc-black-search{display:flex;align-items:center;gap:6px;border:1px solid #dfe5ea;border-radius:8px;padding-left:9px}
+.cc-black-search input{border:0;outline:none}
+.cc-black-list table{min-width:980px}
+.cc-black-list td select,.cc-black-list td input{max-width:170px;min-width:125px;width:100%;padding:8px 9px;border-radius:7px;border:1px solid #dce3e9;background:#fff;color:#27343f;font-size:11px}
+.cc-black-list td input{min-width:165px;max-width:220px}
+.cc-black-date{white-space:nowrap;color:#697784!important}
+.cc-black-actions{display:flex;align-items:center;gap:9px}
+.cc-black-actions>a{display:flex;align-items:center;justify-content:center;color:#15875c;padding:8px;border-radius:7px;background:#e8f6ee}
+.cc-black-actions .btn{padding:8px 10px;font-size:11px;white-space:nowrap}
+.cc-black-pagination{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:15px;font-size:11px;color:#687883;flex-wrap:wrap}
+.cc-black-pagination>div{display:flex;gap:8px}
+.cc-black-empty{padding:24px 12px;text-align:center;color:#687883;font-size:12px}
+.cc-black-integration>p:first-of-type{display:flex;align-items:flex-start;gap:8px}
+.cc-black-integration>p:first-of-type svg{flex:0 0 auto}
+.cc-black-source-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.cc-black-source-actions input{flex:1 1 240px}
+.cc-black-script{display:flex;flex-direction:column;align-items:flex-start;gap:9px;padding:14px;margin:12px 0;border-radius:10px;border:1px solid #e0e6ec;background:#f8fafc}
+.cc-black-script strong{font-size:13px}
+.cc-black-script textarea{width:100%;max-width:100%;min-height:175px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;border:1px solid #d4dce4;border-radius:7px;padding:12px;resize:vertical;color:#27343e;background:#fff}
+.cc-black-sources{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.cc-black-source{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px;border:1px solid #e8ecf0;border-radius:8px}
+.cc-black-source>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cc-black-source strong{font-size:12px}
+.cc-black-source small{color:#788690;font-size:10px;overflow-wrap:anywhere}
+.cc-black-history p{border-bottom:1px solid #e6ecf1;padding:9px 0;margin:0}
+@media(max-width:1250px){.cc-black-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cc-black-layout{grid-template-columns:1fr}}
+@media(max-width:720px){.cc-black-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-black-kpi{padding:14px}.cc-black-kpi strong{font-size:22px}.cc-black-mapping,.cc-black-filters{grid-template-columns:1fr}.cc-black-source-actions>.btn{width:100%;justify-content:center}}
