@@ -10,6 +10,7 @@ export default function ReminderCenter({onOpenReminder}){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [queue,setQueue]=useState([]);
+ const [pageVisible,setPageVisible]=useState(true);
  const polling=useRef(false);
  const observed=useRef(new Set());
  const initialized=useRef(false);
@@ -105,19 +106,21 @@ export default function ReminderCenter({onOpenReminder}){
      return true;
     });
     if(!eligible.length)return;
-    if(document.visibilityState==="visible"&&document.hasFocus()){
-     setQueue(old=>[...old,...eligible]);
-    }else{
+    // A janela fica na fila mesmo quando o usuário está em outra aba:
+    // ao voltar à Central, ele encontra o aviso no centro da tela.
+    setQueue(old=>[...old,...eligible]);
+    if(document.visibilityState!=="visible"||!document.hasFocus()){
      for(const event of eligible)void notifyNative(event);
-     // Quando a pessoa volta para a Central, o compromisso também aparece
-     // no calendário. Não abre janela por cima do trabalho feito em outra aba.
     }
    }catch{/* Avisos são acessórios; não bloqueiam o sistema se a API estiver fora. */}
    finally{polling.current=false;}
   };
   const timer=setInterval(check,15000);
-  const onFocus=()=>{void check();};
-  const onVisible=()=>{if(document.visibilityState==="visible")void check();};
+  const onFocus=()=>{setPageVisible(document.visibilityState==="visible");void check();};
+  const onVisible=()=>{
+   setPageVisible(document.visibilityState==="visible");
+   if(document.visibilityState==="visible")void check();
+  };
   window.addEventListener("focus",onFocus);
   document.addEventListener("visibilitychange",onVisible);
   void check();
@@ -147,6 +150,25 @@ export default function ReminderCenter({onOpenReminder}){
   })();
  },[permission]);
 
+ const disable=async()=>{
+  if(busy)return;
+  setBusy(true);setError("");
+  try{
+   const registration=await navigator.serviceWorker?.getRegistration("/");
+   const subscription=await registration?.pushManager?.getSubscription();
+   if(subscription){
+    const result=await fetch("/api/notifications/push",{
+     method:"DELETE",credentials:"same-origin",
+     headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({endpoint:subscription.endpoint})
+    });
+    if(!result.ok)throw Error("Não foi possível desativar a inscrição no servidor.");
+    await subscription.unsubscribe();
+   }
+   setPermission("granted");
+  }catch(e){setError(e.message||"Não foi possível desativar.");}
+  finally{setBusy(false);}
+ };
  const dismiss=()=>setQueue(x=>x.slice(1));
  const open=()=>{
   if(!active)return;
@@ -158,10 +180,11 @@ export default function ReminderCenter({onOpenReminder}){
   <div className="cc-reminder-permission">
    {["default","checking"].includes(permission)&&<button className="cc-reminder-enable" type="button" disabled={busy||permission==="checking"} onClick={enable}><BellRing size={16}/>{busy?"Ativando…":"Ativar avisos"}</button>}
    {permission==="granted"&&<button className="cc-reminder-enable" onClick={enable} disabled={busy} type="button"><BellRing size={16}/> Ativar push</button>}
+   {permission==="enabled"&&<button className="cc-reminder-enable" onClick={disable} disabled={busy} type="button" title="Avisos do navegador ativos. Clique para desativar."><CheckCircle2 size={16}/> Avisos ativos</button>}
    {permission==="denied"&&<span className="cc-reminder-permission-help" title="Habilite notificações nas configurações deste site no navegador."><BellRing size={15}/> Avisos bloqueados</span>}
    {error&&<span className="cc-reminder-permission-error" role="alert" title={error}>{error}</span>}
   </div>
-  {active&&document.visibilityState==="visible"&&<div className="cc-reminder-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)dismiss();}}>
+  {active&&pageVisible&&<div className="cc-reminder-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)dismiss();}}>
     <section className="cc-reminder-dialog" role="alertdialog" aria-modal="true" aria-label="Compromisso começando agora">
      <div className="cc-reminder-dialog-top"><span><BellRing size={16}/> AVISO DE COMPROMISSO</span><button onClick={dismiss} aria-label="Fechar aviso" type="button"><X size={20}/></button></div>
      <div className="cc-reminder-emblem"><CalendarDays size={29}/></div>
