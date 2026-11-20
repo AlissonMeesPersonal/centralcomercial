@@ -244,17 +244,13 @@ export async function POST(request){
    if(Number(existing[0].revision)!==expected)return error("A demanda foi modificada por outra pessoa. Atualize e tente novamente.",409);
    const at=new Date().toISOString();
    const event={id:randomUUID(),at,action:"Demanda excluída",by:access.email};
+   // Exclusão lógica da demanda, cancelamento do prazo e auditoria,
+   // em uma única instrução transacional. Um erro reverte todas as alterações.
    const rows=await sql.query(
-    "UPDATE cc_commercial_tasks SET payload=payload || jsonb_build_object('deletedAt',$2::text,'deletedBy',$3::text,'updatedAt',$2::text,'history',COALESCE(payload->'history','[]'::jsonb)||jsonb_build_array($4::jsonb)),revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$1 AND revision=$5 AND NOT (payload ? 'deletedAt') RETURNING payload,revision",
+    "WITH changed AS (UPDATE cc_commercial_tasks SET payload=payload || jsonb_build_object('deletedAt',$2::text,'deletedBy',$3::text,'archived',true,'updatedAt',$2::text,'history',COALESCE(payload->'history','[]'::jsonb)||jsonb_build_array($4::jsonb)),revision=revision+1,updated_by=$3,updated_at=now() WHERE id=$1 AND revision=$5 AND NOT (payload ? 'deletedAt') RETURNING payload,revision,id), linked AS (UPDATE cc_calendar_events SET status='cancelado',revision=cc_calendar_events.revision+1,updated_at=now() WHERE external_task_id=$1 AND status<>'cancelado' AND EXISTS(SELECT 1 FROM changed) RETURNING *), audited AS (INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,after_data) SELECT id,$3,'cancelled',revision,to_jsonb(linked) FROM linked RETURNING event_id) SELECT payload,revision FROM changed",
     [id,at,access.email,JSON.stringify(event),expected]
    );
    if(!rows.length)return error("A demanda foi modificada por outra pessoa. Atualize e tente novamente.",409);
-   // O prazo vinculado é cancelado no mesmo comando: a demanda excluída
-   // não continua aparecendo como agendamento ativo.
-   const cancelled=await sql.query(
-    "WITH linked AS (UPDATE cc_calendar_events SET status='cancelado',revision=revision+1,updated_at=now() WHERE external_task_id=$1 AND status<>'cancelado' RETURNING *) INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,after_data) SELECT id,$2,'cancelled',revision,to_jsonb(linked) FROM linked RETURNING event_id",
-    [id,access.email]
-   );
    return response({ok:true,item:{...rows[0].payload,id,syncRevision:Number(rows[0].revision)}});
   }
   if(action==="save_task"){
