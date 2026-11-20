@@ -1436,9 +1436,9 @@
 .cc-black-daily-track>.cc-black-daily-fill{
  width:0;
  min-width:0;
- transition-property:width,background-color;
- transition-duration:1150ms,280ms;
- transition-timing-function:cubic-bezier(.18,.8,.22,1),ease;
+ /* O React anima width a cada frame; uma transição CSS sobreposta
+    impediria que a barra acompanhasse a contagem dos novos leads. */
+ transition:none;
  will-change:width;
 }
 .cc-black-daily-row:hover .cc-black-daily-fill{
