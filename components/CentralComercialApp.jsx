@@ -89,6 +89,7 @@ function TaskCard({item,units,onOpen,compact=false,drag=true}) {
 export default function Home({accessRole}) {
  const [ready,setReady]=useState(false),[units,setUnits]=useState([]),[campaigns,setCampaigns]=useState([]),[tasks,setTasks]=useState([]),[deletedTasks,setDeletedTasks]=useState([]);
  const [historyTab,setHistoryTab]=useState("atividades"),[deletedSearch,setDeletedSearch]=useState(""),[selectedDeleted,setSelectedDeleted]=useState(null);
+ const [showArchivedTasks,setShowArchivedTasks]=useState(false);
  // Refs preservam a etapa mais recente durante movimentações rápidas,
  // sem esperar a renderização ou a resposta de chamadas externas.
  const tasksRef=useRef(tasks);
@@ -295,12 +296,12 @@ export default function Home({accessRole}) {
  const filtered=useMemo(()=>tasks.filter(t=>{
   const search=(t.title+" "+t.objective+" "+t.owner+" "+t.category+" "+(units.find(u=>u.id===t.unitId)?.name||"")).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   const q=filter.q.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-  return (!q||search.includes(q))&&(!filter.unit||t.unitId===filter.unit)&&(!filter.priority||t.priority===filter.priority)&&(!filter.stage||t.stage===filter.stage)&&(!filter.campaign||t.campaignId===filter.campaign)&&(!filter.category||t.category===filter.category)&&(!filter.owner||t.owner.toLowerCase().includes(filter.owner.toLowerCase()))&&(!filter.period||!t.due||(filter.period==="overdue"?t.due<day()&&t.stage!=="Concluído":filter.period==="week"?t.due>=day()&&t.due<=day(7):true));
- }),[tasks,filter,units]);
+  return (showArchivedTasks||!t.archived)&&(!q||search.includes(q))&&(!filter.unit||t.unitId===filter.unit)&&(!filter.priority||t.priority===filter.priority)&&(!filter.stage||t.stage===filter.stage)&&(!filter.campaign||t.campaignId===filter.campaign)&&(!filter.category||t.category===filter.category)&&(!filter.owner||t.owner.toLowerCase().includes(filter.owner.toLowerCase()))&&(!filter.period||!t.due||(filter.period==="overdue"?t.due<day()&&t.stage!=="Concluído":filter.period==="week"?t.due>=day()&&t.due<=day(7):true));
+ }),[tasks,filter,units,showArchivedTasks]);
  const openCount=tasks.filter(t=>t.stage!=="Concluído"&&!t.archived).length;
- const overdue=tasks.filter(t=>t.stage!=="Concluído"&&t.due<day()).length;
+ const overdue=tasks.filter(t=>t.stage!=="Concluído"&&!t.archived&&t.due<day()).length;
  const pending=tasks.filter(t=>t.stage==="Aguardando aprovação").length;
- const upcoming=tasks.filter(t=>t.stage!=="Concluído"&&t.due>=day()&&t.due<=day(7)).length;
+ const upcoming=tasks.filter(t=>t.stage!=="Concluído"&&!t.archived&&t.due>=day()&&t.due<=day(7)).length;
  function openTask(t){setError("");setEditing(JSON.parse(JSON.stringify(t)));setDrawer("task");}
  function newTask(){
   if(accessRole==="colaborador"){notify("Seu perfil pode atualizar apenas demandas atribuídas.");return;}
@@ -438,25 +439,27 @@ export default function Home({accessRole}) {
  }
  async function toggleTaskArchived(){
   if(!editing||!tasks.some(t=>t.id===editing.id))return;
+  if(!["developer","admin","gestor"].includes(accessRole)){
+   setError("Somente a administração pode arquivar ou restaurar demandas.");return;
+  }
   const next=!editing.archived;
-  if(next&&!window.confirm("Arquivar esta demanda? Ela continuará disponível para consulta e restauração."))return;
-  const updated={...editing,archived:next,updatedAt:new Date().toISOString()};
+  if(next&&!window.confirm("Arquivar esta demanda e retirar o prazo da agenda ativa? É possível restaurá-la depois."))return;
   try{
-   const synced=await syncTaskDeadline(updated);
    const result=await commercialRequest({
-    action:"save_task",item:synced,expectedRevision:editing.syncRevision||0
+    action:"set_task_archived",id:editing.id,archived:next,
+    expectedRevision:editing.syncRevision||0
    });
-   serverRevisionsRef.current.set(updated.id,result.item.syncRevision);
-   setTasks(list=>list.map(t=>t.id===updated.id?result.item:t));
+   serverRevisionsRef.current.set(editing.id,result.item.syncRevision);
+   setTasks(list=>list.map(t=>t.id===editing.id?result.item:t));
    setEditing(result.item);setDrawer(null);setError("");
    window.dispatchEvent(new Event("26fit:calendar-updated"));
-   notify(next?"Demanda arquivada no Neon.":"Demanda restaurada no Neon.");
+   notify(next?"Demanda arquivada e prazo removido da agenda ativa.":"Demanda restaurada na Central e na agenda.");
    void recordActivity({
-    module:"demanda",action:next?"archived":"restored",entityId:updated.id,
-    title:updated.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:updated.unitId
+    module:"demanda",action:next?"archived":"restored",entityId:editing.id,
+    title:editing.title||"Demanda",details:next?"Demanda arquivada":"Demanda restaurada",unitId:editing.unitId
    }).catch(()=>{});
   }catch(err){
-   setError(err.message||"Falha ao arquivar a demanda.");
+   setError(err.message||"Não foi possível atualizar o arquivamento.");
    if(err.status===409)void refreshShared(false);
   }
  }
@@ -652,7 +655,7 @@ export default function Home({accessRole}) {
    </>}
    {nav==="Demandas"&&<>
     <div className="heading-row"><div><div className="eyebrow">GESTÃO DA EXECUÇÃO</div><h1>Demandas</h1><p>Do planejamento ao aprendizado, tudo em um único lugar.</p></div>{accessRole!=="colaborador"&&<Button onClick={newTask}><Plus size={17}/> Nova demanda</Button>}</div>
-    <div className="toolbar"><div className="tab-list">{[["Kanban",Columns3],["Lista",List],["Calendário",CalendarDays],["Por unidade",Building2]].map(([label,Icon])=><button key={label} className={view===label?"active":""} onClick={()=>setView(label)}><Icon size={15}/>{label}</button>)}</div><span className="count">{filtered.length} demandas</span></div>
+    <div className="toolbar"><div className="tab-list">{[["Kanban",Columns3],["Lista",List],["Calendário",CalendarDays],["Por unidade",Building2]].map(([label,Icon])=><button key={label} className={view===label?"active":""} onClick={()=>setView(label)}><Icon size={15}/>{label}</button>)}</div><label className="cc-archive-filter"><input type="checkbox" checked={showArchivedTasks} onChange={e=>setShowArchivedTasks(e.target.checked)}/> Mostrar arquivadas ({tasks.filter(t=>t.archived).length})</label><span className="count">{filtered.length} demandas</span></div>
     <div className="filters"><div className="search"><Search size={17}/><input aria-label="Buscar demandas" placeholder="Buscar demandas..." value={filter.q} onChange={e=>setFilter(f=>({...f,q:e.target.value}))}/></div>
      <select aria-label="Filtrar unidade" value={filter.unit} onChange={e=>setFilter(f=>({...f,unit:e.target.value}))}><option value="">Todas as unidades</option>{units.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>
      <select aria-label="Filtrar prioridade" value={filter.priority} onChange={e=>setFilter(f=>({...f,priority:e.target.value}))}><option value="">Prioridade</option>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select>
@@ -802,7 +805,7 @@ export default function Home({accessRole}) {
    <div className="form-section"><h3><CircleAlert size={18}/> Bloqueios e conclusão</h3><label className="toggle-line"><input type="checkbox" checked={!!editing.blocked} onChange={e=>setEditing(d=>({...d,blocked:e.target.checked}))}/> Demanda bloqueada</label>{editing.blocked&&<Field label="Motivo do bloqueio *"><textarea value={editing.blockReason||""} onChange={e=>setEditing(d=>({...d,blockReason:e.target.value}))}/></Field>}
    {editing.stage==="Concluído"&&<div className="learning-input"><Field label="O que funcionou? *"><textarea value={editing.learning?.worked||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,worked:e.target.value}}))}/></Field><Field label="Quais foram as dificuldades? *"><textarea value={editing.learning?.challenges||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,challenges:e.target.value}}))}/></Field><Field label="Recomendação *"><select value={editing.learning?.decision||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,decision:e.target.value}}))}><option value="">Selecione</option><option>Repetir</option><option>Ajustar</option><option>Encerrar</option></select></Field>{editing.checklist.some(c=>c.required&&!c.done)&&<Field label="Justificativa para atividades obrigatórias pendentes *"><textarea value={editing.learning?.pendingReason||""} onChange={e=>setEditing(d=>({...d,learning:{...d.learning,pendingReason:e.target.value}}))}/></Field>}</div>}</div>
    <div className="form-section"><h3><MessageSquare size={18}/> Comentários e histórico</h3><div className="comment-list">{(editing.comments||[]).map(c=><div key={c.id} className="comment"><strong>Usuário demonstrativo</strong><p>{c.text}</p><small>{dateFmt(c.at?.slice(0,10))}</small></div>)}</div><textarea id="new-comment" rows={2} placeholder="Registre um comentário ou aprendizado..."/><button className="add-link" onClick={()=>{const el=document.getElementById("new-comment");const value=el?.value?.trim();if(value){setEditing(d=>({...d,comments:[...(d.comments||[]),{id:uid(),at:new Date().toISOString(),text:value}]}));el.value="";}}}><Plus size={15}/> Adicionar comentário</button>{(editing.history||[]).slice(-4).reverse().map((h,i)=><div className="history" key={i}>{h.action} · {h.by}</div>)}</div>
-  </div><div className="drawer-footer">{tasks.some(t=>t.id===editing.id)&&["developer","admin","gestor"].includes(accessRole)&&<Button kind="danger" onClick={deleteTask}><Trash2 size={16}/> Excluir demanda</Button>}{tasks.some(t=>t.id===editing.id)&&<Button kind="secondary" onClick={toggleTaskArchived}><Archive size={16}/> {editing.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask} disabled={!!editing.archived}><Save size={16}/> Salvar demanda</Button></div></div></div>}
+  </div><div className="drawer-footer">{tasks.some(t=>t.id===editing.id)&&["developer","admin","gestor"].includes(accessRole)&&<Button kind="danger" onClick={deleteTask}><Trash2 size={16}/> Excluir demanda</Button>}{tasks.some(t=>t.id===editing.id)&&["developer","admin","gestor"].includes(accessRole)&&<Button kind="secondary" onClick={toggleTaskArchived}><Archive size={16}/> {editing.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveTask} disabled={!!editing.archived}><Save size={16}/> Salvar demanda</Button></div></div></div>}
   {drawer==="campaign"&&campaignDraft&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDrawer(null);}}><div className="drawer campaign-drawer"><div className="drawer-head"><div><span className="eyebrow">CAMPANHA DA REDE</span><h2>Planejamento central</h2></div><button className="icon-button" onClick={()=>setDrawer(null)}><X size={20}/></button></div><div className="drawer-content"><Notice>Ao salvar, será criada uma entrega para cada unidade selecionada que ainda não tenha uma demanda vinculada. Retirar unidades não apaga históricos.</Notice>{error&&<div className="validation">{error}</div>}<Field label="Nome da campanha *"><input value={campaignDraft.title} onChange={e=>setCampaignDraft(d=>({...d,title:e.target.value}))}/></Field><Field label="Orientações da gestão (versionadas)"><textarea rows={5} value={campaignDraft.description} onChange={e=>setCampaignDraft(d=>({...d,description:e.target.value}))}/></Field><div className="form-pair"><Field label="Indicador consolidado"><select value={campaignDraft.indicator} onChange={e=>setCampaignDraft(d=>({...d,indicator:e.target.value}))}>{METRICS.map(m=><option key={m}>{m}</option>)}</select></Field><Field label="Meta consolidada"><input type="number" min="0" value={campaignDraft.goal??""} onChange={e=>setCampaignDraft(d=>({...d,goal:e.target.value===""?null:Number(e.target.value)}))}/></Field></div><div className="form-section"><h3><Building2 size={18}/> Unidades participantes</h3>
    <CampaignUnitSelector units={units} selectedIds={campaignDraft.units||[]} onChange={unitIds=>setCampaignDraft(d=>({...d,units:unitIds}))}/>
    </div></div><div className="drawer-footer">{campaigns.some(c=>c.id===campaignDraft.id)&&<Button kind="secondary" onClick={toggleCampaignArchived}><Archive size={16}/> {campaignDraft.archived?"Restaurar":"Arquivar"}</Button>}<Button kind="secondary" onClick={()=>setDrawer(null)}>Cancelar</Button><Button onClick={saveCampaign} disabled={!!campaignDraft.archived}><Save size={16}/> Salvar campanha</Button></div></div></div>}
