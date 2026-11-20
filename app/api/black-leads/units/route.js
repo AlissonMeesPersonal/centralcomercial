@@ -24,7 +24,7 @@ export async function GET(request){
   if(!valid.length)return reply({error:"Integração revogada ou inválida."},403);
 
   const rows=await sql.query(
-   "SELECT DISTINCT trim(payload->>'name') AS name, id, payload->>'state' AS state FROM (SELECT id,payload FROM cc_unit_seed UNION ALL SELECT id,payload FROM cc_unit_records) units WHERE payload->>'type' IN ('Unidade','Franquia','Eleve') AND length(trim(payload->>'name'))>5 ORDER BY name LIMIT 250"
+   "SELECT DISTINCT trim(payload->>'name') AS name, id, payload->>'state' AS state FROM (SELECT id,payload FROM cc_unit_seed UNION ALL SELECT id,payload FROM cc_unit_records) units WHERE payload->>'type' IN ('Unidade','Franquia','Eleve','Matriz') AND length(trim(payload->>'name'))>5 ORDER BY name LIMIT 250"
   );
   const seen=new Set();
   const units=rows.filter(x=>{
@@ -32,7 +32,7 @@ export async function GET(request){
    if(seen.has(key))return false;seen.add(key);return true;
   }).map(x=>({id:x.id,name:x.name,state:x.state}));
   units.sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
-  return reply({units,count:units.length,source:"Central Comercial 26fit e Eleve"});
+  return reply({units,count:units.length,source:"Central Comercial 26fit, Eleve e Matriz"});
  }catch(e){
   console.error("black units feed failed",e?.code||"unknown");
   return reply({error:"Não foi possível consultar as unidades."},503);
