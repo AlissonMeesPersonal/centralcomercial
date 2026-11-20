@@ -297,8 +297,20 @@ export default function BlackFridayDashboard({isDeveloper=false}){
     {progress&&<p>{progress}</p>}
    </section>
    <section className="panel cc-black-graph">
-    <div className="section-title"><div><h3><BarChart3 size={17}/> Cadastros por dia</h3><p>Últimos 14 dias com respostas registradas</p></div></div>
-    {chart.length?<div className="cc-black-bars">{chart.map(x=><div className="cc-black-bar" key={x.day}><span>{x.day.slice(8,10)}/{x.day.slice(5,7)}</span><div><i style={{width:(100*x.leads/max)+"%"}}/></div><b>{fmt(x.leads)}</b></div>)}</div>:<p className="cc-black-empty">O gráfico será preenchido depois de importar respostas com data.</p>}
+    <div className="section-title"><div><h3><BarChart3 size={17}/> Cadastros por dia</h3><p>Leads recebidos em cada data · horário de Brasília</p></div></div>
+    {chart.length?<div className="cc-black-daily-chart">{chart.map(x=>{
+      const amount=Number(x.leads)||0;
+      const dateLabel=x.day.slice(8,10)+"/"+x.day.slice(5,7)+"/"+x.day.slice(0,4);
+      return <div className="cc-black-daily-row" key={x.day}>
+       <div className="cc-black-daily-labels">
+        <span className="cc-black-daily-date">{dateLabel}</span>
+        <strong className="cc-black-daily-total">{fmt(amount)} <span>{amount===1?"lead":"leads"}</span></strong>
+       </div>
+       <div className="cc-black-daily-track" role="img" aria-label={dateLabel+": "+fmt(amount)+" "+(amount===1?"lead":"leads")}>
+        <span style={{width:(100*amount/max)+"%"}}/>
+       </div>
+      </div>;
+     })}</div>:<p className="cc-black-empty">O gráfico será preenchido depois de importar respostas com data.</p>}
     <p className="cc-black-note">Conversão = leads marcados como convertidos ÷ cadastros totais. Não representa vendas confirmadas sem atualização do status pela equipe.</p>
    </section>
   </div>
