@@ -104,6 +104,64 @@ function makeScript(endpoint,token){
   "}"
  ].join("\n");
 }
+const BLACK26_FORM_UNITS_SCRIPT = String.raw\`/**
+ * Black26 - preenche a lista suspensa "Unidade 26fit" automaticamente.
+ * Adicione estas funções ao mesmo Código.gs usado para integrar os leads.
+ * NÃO substitua BLACK26_API, BLACK26_CHAVE nem as outras funções existentes.
+ */
+function black26fitAtualizarUnidades() {
+  const api = BLACK26_API.replace(/\/webhook\/?$/, '/units');
+  if (api === BLACK26_API) {
+    throw new Error('A URL da integração Black26 não foi encontrada.');
+  }
+  const resposta = UrlFetchApp.fetch(api, {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + BLACK26_CHAVE },
+    muteHttpExceptions: true
+  });
+  if (resposta.getResponseCode() !== 200) {
+    throw new Error('Erro ao consultar unidades: ' + resposta.getContentText());
+  }
+  const unidades = JSON.parse(resposta.getContentText()).units;
+  if (!Array.isArray(unidades) || unidades.length < 30) {
+    throw new Error('Lista incompleta: nenhuma alteração foi aplicada ao formulário.');
+  }
+
+  const planilha = SpreadsheetApp.getActiveSpreadsheet();
+  const urlFormulario = planilha.getFormUrl();
+  if (!urlFormulario) {
+    throw new Error('Esta planilha não possui um formulário vinculado.');
+  }
+  const formulario = FormApp.openByUrl(urlFormulario);
+  const limpar = valor => String(valor || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const perguntas = formulario.getItems().filter(item =>
+    limpar(item.getTitle()).includes('em qual unidade 26fit')
+  );
+  if (perguntas.length !== 1) {
+    throw new Error('Não foi encontrada exatamente uma pergunta sobre unidade 26fit.');
+  }
+  if (perguntas[0].getType() !== FormApp.ItemType.LIST) {
+    throw new Error('No editor do Formulário, altere a pergunta de "Resposta curta" para "Lista suspensa" e execute novamente.');
+  }
+  const nomes = unidades.map(unidade => unidade.name);
+  perguntas[0].asListItem().setChoiceValues(nomes).setRequired(true);
+  Logger.log('Lista atualizada com ' + nomes.length + ' unidades 26fit.');
+}
+
+function black26fitAtivarListaDeUnidades() {
+  black26fitAtualizarUnidades();
+  const instalado = ScriptApp.getProjectTriggers().some(
+    trigger => trigger.getHandlerFunction() === 'black26fitAtualizarUnidades'
+  );
+  if (!instalado) {
+    ScriptApp.newTrigger('black26fitAtualizarUnidades')
+      .timeBased().everyDays(1).atHour(4).create();
+  }
+  Logger.log('Atualização diária das unidades ativada.');
+}\`;
 export default function BlackFridayDashboard({isDeveloper=false}){
  const [data,setData]=useState({summary:{},byUnit:[],byDay:[],leads:[],history:[],sources:[]});
  const [filters,setFilters]=useState({unit:"",status:"",q:""});
@@ -112,6 +170,7 @@ export default function BlackFridayDashboard({isDeveloper=false}){
  const [preview,setPreview]=useState(null),[progress,setProgress]=useState("");
  const [edits,setEdits]=useState({}),[page,setPage]=useState(0);
  const [generated,setGenerated]=useState(null),[sourceLabel,setSourceLabel]=useState("26fit | Catraca Livre Semana Black26 (respostas)");
+ const [showUnitsCode,setShowUnitsCode]=useState(false);
  const refresh=async()=>{
   try{
    const query=new URLSearchParams(filters);
@@ -279,6 +338,16 @@ export default function BlackFridayDashboard({isDeveloper=false}){
     <button className="btn secondary" onClick={()=>navigator.clipboard.writeText(generated.script)}><Copy size={15}/> Copiar código da integração</button>
    </div>}
    {(data.sources||[]).length>0&&<div className="cc-black-sources">{data.sources.map(src=><div className="cc-black-source" key={src.id}><div><strong>{src.label}</strong><small>{src.active?"Ativa":"Revogada"} · {src.last_sync_at?"Último envio "+new Date(src.last_sync_at).toLocaleString("pt-BR"):"Sem envios ainda"}{src.last_error?" · Erro: "+src.last_error:""}</small></div>{src.active&&<button type="button" className="btn secondary" disabled={busy} onClick={()=>{if(window.confirm("Revogar esta conexão Google Sheets?"))void sourceAction("revoke_webhook",src.id);}}><Trash2 size={14}/> Revogar</button>}</div>)}</div>}
+   <div className="cc-black-units-integration">
+    <strong>Lista de unidades no Google Forms</strong>
+    <p>A Central tem a relação atualizada de unidades 26fit. No editor do Google Forms, altere somente a pergunta <b>“Em qual unidade 26fit você está treinando?”</b> de <b>Resposta curta</b> para <b>Lista suspensa</b>. Preserve a mesma pergunta, para manter o vínculo das respostas anteriores.</p>
+    <p>Depois, no Apps Script <b>já instalado na planilha</b>, acrescente o trecho abaixo ao final de Código.gs, salve e execute <code>black26fitAtivarListaDeUnidades</code>. O código preencherá todas as opções e instalará uma atualização diária.</p>
+    <button type="button" className="btn secondary" onClick={()=>setShowUnitsCode(x=>!x)}><FileSpreadsheet size={15}/>{showUnitsCode?"Ocultar código":"Ver código das unidades"}</button>
+    {showUnitsCode&&<div className="cc-black-script">
+      <textarea readOnly rows={14} value={BLACK26_FORM_UNITS_SCRIPT} aria-label="Código Apps Script para atualizar todas as unidades 26fit"/>
+      <button type="button" className="btn secondary" onClick={()=>navigator.clipboard.writeText(BLACK26_FORM_UNITS_SCRIPT)}><Copy size={15}/> Copiar código das unidades</button>
+    </div>}
+   </div>
    <p className="cc-black-note">A integração identifica automaticamente colunas com "Nome", "WhatsApp/Telefone" e "Unidade". Caso os títulos do seu formulário sejam diferentes, teremos que ajustar o mapeamento com a planilha original.</p>
   </section>}
   {!!(data.history||[]).length&&<section className="panel cc-black-history"><div className="section-title"><h3>Histórico de importações</h3></div>{data.history.map((h,i)=><p key={i}>{new Date(h.created_at).toLocaleString("pt-BR")} · {h.filename} · {fmt(h.imported_rows)} linhas · {h.imported_by}</p>)}</section>}
