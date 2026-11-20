@@ -30,6 +30,6 @@ export async function GET(request){
  }catch(e){console.error("Microsoft calendar OAuth failure",String(e.message).slice(0,120));outcome="error";}
  result.searchParams.set("ms",outcome);result.searchParams.set("section","calendar");
  const redirect=NextResponse.redirect(result);
- redirect.cookies.set("cc_ms_oauth",{value:"",httpOnly:true,secure:true,sameSite:"lax",path:"/api/microsoft-calendar",maxAge:0});
+ redirect.cookies.set("cc_ms_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/microsoft-calendar",maxAge:0});
  return redirect;
 }
