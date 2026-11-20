@@ -11,9 +11,21 @@ export default function MicrosoftCalendarPanel({onUpdated,canManageNetwork=false
  useEffect(()=>{void load();const params=new URLSearchParams(window.location.search);const outcome=params.get("ms");
   if(outcome==="connected")setNote("Conta vinculada e compromissos importados com sucesso.");
   if(outcome==="sync_pending")setNote("Conta vinculada. A importação ainda precisa ser sincronizada.");
-  if(outcome==="error")setError("Falha ao autorizar a conta Microsoft. Tente novamente.");
+  if(outcome==="error"){
+   const reason=params.get("ms_reason");
+   const messages={
+    session:"A sessão da Central expirou. Entre novamente e reconecte a conta.",
+    cookies:"A autorização anterior expirou ou o navegador bloqueou cookies. Clique novamente em Conectar Microsoft / Teams.",
+    state:"A verificação de segurança da autorização falhou. Inicie uma nova conexão.",
+    authorization:"A conta Microsoft recusou o acesso. Confira as permissões do aplicativo no Entra.",
+    token:"A Microsoft não aceitou o código de autorização. Verifique Client Secret e URI de redirecionamento.",
+    profile:"A conexão foi autorizada, mas não foi possível consultar o perfil Microsoft.",
+    database:"O login Microsoft foi aceito, mas a Central não conseguiu salvar a conexão."
+   };
+   setError(messages[reason]||"Falha ao autorizar a conta Microsoft. Tente novamente.");
+  }
   if(outcome==="not_configured")setError("Integração Microsoft aguardando credenciais da Vercel.");
-  if(outcome){const clean=new URL(window.location.href);clean.searchParams.delete("ms");clean.searchParams.delete("section");window.history.replaceState({},"",clean.pathname+clean.search+clean.hash);}
+  if(outcome){const clean=new URL(window.location.href);clean.searchParams.delete("ms");clean.searchParams.delete("ms_reason");clean.searchParams.delete("section");window.history.replaceState({},"",clean.pathname+clean.search+clean.hash);}
  },[]);
  async function action(kind){
   if(kind==="disconnect"&&!window.confirm("Desvincular a sua conta Microsoft e remover os eventos importados dela da Central? Os compromissos originais no Teams não serão apagados."))return;
