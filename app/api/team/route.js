@@ -23,22 +23,18 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UNIT_ID_PATTERN = /^[-a-zA-Z0-9]{6,180}$/;
 const ROLES_WITH_REQUIRED_UNITS = ["lider", "colaborador"];
 
-const respond = (data, status = 200) =>
-  Response.json(data, { status, headers: RESPONSE_HEADERS });
+const respond = (data, status = 200) => Response.json(data, { status, headers: RESPONSE_HEADERS });
 
 const fail = (error, status) => respond({ error }, status);
 
-const isValidEmail = (email) =>
-  EMAIL_PATTERN.test(email) && email.length <= 255;
+const isValidEmail = (email) => EMAIL_PATTERN.test(email) && email.length <= 255;
 
 const isValidUnitSelection = (ids) =>
-  ids.length <= 200 &&
-  ids.every((id) => typeof id === "string" && UNIT_ID_PATTERN.test(id));
+  ids.length <= 200 && ids.every((id) => typeof id === "string" && UNIT_ID_PATTERN.test(id));
 
 const needsUnit = (role) => ROLES_WITH_REQUIRED_UNITS.includes(role);
 
-const invitationUrl = (token) =>
-  "https://centralcomercial-eta.vercel.app/convite/" + token;
+const invitationUrl = (token) => "https://centralcomercial-eta.vercel.app/convite/" + token;
 
 const newInviteToken = () => {
   const token = randomBytes(32).toString("base64url");
@@ -183,10 +179,7 @@ async function resendInvitation(data, access, sql) {
   const pending = await sql.query(QUERIES.pendingInvitation, [email]);
 
   if (!pending.length) {
-    return fail(
-      "Não existe convite ativo para este endereço. Gere um novo convite.",
-      404,
-    );
+    return fail("Não existe convite ativo para este endereço. Gere um novo convite.", 404);
   }
 
   if (!canInviteRole(access.role, pending[0].role)) {
@@ -194,10 +187,7 @@ async function resendInvitation(data, access, sql) {
   }
 
   if (new Date(pending[0].created_at).getTime() > Date.now() - 120_000) {
-    return fail(
-      "Um convite acabou de ser gerado. Aguarde dois minutos antes de reenviar.",
-      429,
-    );
+    return fail("Um convite acabou de ser gerado. Aguarde dois minutos antes de reenviar.", 429);
   }
 
   const member = await sql.query(
@@ -206,20 +196,13 @@ async function resendInvitation(data, access, sql) {
   );
 
   if (member[0]?.status === "active") {
-    return fail(
-      "Este usuário já possui acesso ativo e não precisa de novo convite.",
-      409,
-    );
+    return fail("Este usuário já possui acesso ativo e não precisa de novo convite.", 409);
   }
 
   const { token, tokenHash } = newInviteToken();
 
   // Revoga o convite anterior e cria um novo na mesma instrução SQL.
-  const renewed = await sql.query(QUERIES.renewInvitation, [
-    email,
-    tokenHash,
-    access.email,
-  ]);
+  const renewed = await sql.query(QUERIES.renewInvitation, [email, tokenHash, access.email]);
 
   if (!renewed.length) {
     return fail("O convite foi alterado em outra sessão. Atualize a lista.", 409);
@@ -287,9 +270,7 @@ async function createInvitation(data, access, sql) {
     return fail("Este e-mail já possui acesso à equipe.", 409);
   }
 
-  const unitIds = Array.isArray(data.unitIds)
-    ? [...new Set(data.unitIds)]
-    : [];
+  const unitIds = Array.isArray(data.unitIds) ? [...new Set(data.unitIds)] : [];
 
   if (!isValidUnitSelection(unitIds)) {
     return fail("Seleção de unidades inválida.", 422);
@@ -305,14 +286,7 @@ async function createInvitation(data, access, sql) {
 
   const { token, tokenHash } = newInviteToken();
 
-  await sql.query(QUERIES.createInvitation, [
-    email,
-    tokenHash,
-    name,
-    role,
-    access.email,
-    unitIds,
-  ]);
+  await sql.query(QUERIES.createInvitation, [email, tokenHash, name, role, access.email, unitIds]);
 
   await sql.query(QUERIES.invitationAudit, [
     access.email,
@@ -336,10 +310,7 @@ async function createInvitation(data, access, sql) {
         ? "Convite criado. O e-mail automático não está configurado; compartilhe o link manualmente."
         : "Convite criado, mas o Resend não confirmou o envio. Compartilhe o link manualmente.";
 
-  return respond(
-    { url, email, name, role, emailStatus: delivery.status, message },
-    201,
-  );
+  return respond({ url, email, name, role, emailStatus: delivery.status, message }, 201);
 }
 
 // -----------------------------------------------------------------------------
@@ -349,9 +320,7 @@ async function createInvitation(data, access, sql) {
 async function changeRole(body, access, sql, email) {
   const newRole = String(body.role || "").trim();
   const revision = body.roleRevision;
-  const unitIds = Array.isArray(body.unitIds)
-    ? [...new Set(body.unitIds)]
-    : null;
+  const unitIds = Array.isArray(body.unitIds) ? [...new Set(body.unitIds)] : null;
 
   if (!canInviteRole(access.role, newRole)) {
     return fail("Você não pode atribuir esse cargo.", 403);
@@ -406,9 +375,7 @@ async function changeRole(body, access, sql, email) {
 }
 
 async function assignUnits(body, access, sql, email) {
-  const unitIds = Array.isArray(body.unitIds)
-    ? [...new Set(body.unitIds)]
-    : null;
+  const unitIds = Array.isArray(body.unitIds) ? [...new Set(body.unitIds)] : null;
   const revision = body.unitRevision;
 
   if (!unitIds || !isValidUnitSelection(unitIds)) {
@@ -459,12 +426,7 @@ async function changeStatus(status, access, sql, email, target) {
       "  (actor_email, target_email, action, old_value, new_value)",
       "VALUES ($1, $2, 'change_status', $3::jsonb, $4::jsonb)",
     ].join(" "),
-    [
-      access.email,
-      email,
-      JSON.stringify({ status: target.status }),
-      JSON.stringify({ status }),
-    ],
+    [access.email, email, JSON.stringify({ status: target.status }), JSON.stringify({ status })],
   );
 
   return respond({ member: rows[0] });
@@ -485,9 +447,7 @@ export async function GET() {
     const invitations = await sql.query(QUERIES.invitations);
     const links = await sql.query(QUERIES.assignments);
 
-    const linkedUnits = new Map(
-      links.map(({ email, unit_ids }) => [email, unit_ids]),
-    );
+    const linkedUnits = new Map(links.map(({ email, unit_ids }) => [email, unit_ids]));
 
     return respond({
       members: members.map((member) => ({
@@ -566,10 +526,9 @@ export async function PATCH(request) {
 
     const sql = database();
 
-    const hidden = await sql.query(
-      "SELECT 1 FROM cc_hidden_developers WHERE lower(email) = $1",
-      [email],
-    );
+    const hidden = await sql.query("SELECT 1 FROM cc_hidden_developers WHERE lower(email) = $1", [
+      email,
+    ]);
 
     if (hidden.length) {
       return fail("Conta indisponível para alterações.", 403);
