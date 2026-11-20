@@ -117,8 +117,10 @@ export default function Home({accessRole}) {
    try{
     const result=await authClient.signOut();
     if(result?.error)throw new Error(result.error.message||"Não foi possível encerrar a sessão.");
-    // Logout encerra também a preferência da aba: próximo acesso abre Visão geral.
+    // Logout limpa a aba salva; novo login sempre começa em Visão geral.
     try{window.sessionStorage.removeItem("26fit-central-active-section-v1");}catch{}
+    // A URL antiga (ex.: ?page=manage-units) não deve continuar após o logout.
+    try{window.history.replaceState(window.history.state,"",window.location.pathname);}catch{}
     // Navegação completa remove o painel da memória do cliente e força uma nova validação no servidor.
     window.location.replace("/auth/sign-in");
    }catch(e){
@@ -128,18 +130,16 @@ export default function Home({accessRole}) {
   }
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- // Na primeira abertura desta aba, inicia em Visão geral. Durante a mesma
- // sessão de navegação, F5/refresh mantém a seção que a pessoa estava usando.
- // Links diretos (por exemplo, retorno do Microsoft OAuth) têm precedência.
+ // A aba é preservada somente durante a sessão desta guia. Ao abrir a
+ // Central pela primeira vez ou após logout, a página inicial é Visão geral.
+ // Parâmetros ?page=... legados não podem sobrescrever a aba atual.
  useEffect(()=>{
   const params=new URLSearchParams(window.location.search);
-  const page=params.get("page");
   let next="Visão geral";
-  if(page==="manage-units")next="Gerenciar unidades";
-  else if(page==="churn")next="Churn das unidades";
-  else if(page==="history")next="Histórico";
-  else if(page==="calendar"||params.get("section")==="calendar"||params.has("ms"))next="Calendário";
-  else{
+  const microsoftReturn=params.has("ms")&&params.get("section")==="calendar";
+  if(microsoftReturn){
+   next="Calendário";
+  }else{
    try{
     const saved=window.sessionStorage.getItem("26fit-central-active-section-v1");
     const allowed=NAV.some(([name])=>name===saved)&&
@@ -149,7 +149,7 @@ export default function Home({accessRole}) {
      (saved!=="Black Friday • Leads"||["developer","admin","gestor"].includes(accessRole))&&
      (!["Gerenciar unidades","Configurações","Equipe"].includes(saved)||["developer","admin","gestor"].includes(accessRole));
     if(allowed)next=saved;
-   }catch{/* Armazenamento privado indisponível: abre a Visão geral. */}
+   }catch{/* Sem storage, iniciamos em Visão geral. */}
   }
   setNav(next);
   setNavRestored(true);
@@ -157,7 +157,17 @@ export default function Home({accessRole}) {
  useEffect(()=>{
   if(!navRestored)return;
   try{window.sessionStorage.setItem("26fit-central-active-section-v1",nav);}
-  catch{/* A navegação continua mesmo se o navegador bloquear storage. */}
+  catch{/* Navegação funcional mesmo sem armazenamento. */}
+  // Limpa rotas antigas que causavam o retorno involuntário a Gerenciar unidades
+  // depois de atualizar, sair ou entrar. Preserva o resultado OAuth até a
+  // tela de integração Microsoft consumi-lo.
+  const url=new URL(window.location.href);
+  const isMicrosoftReturn=nav==="Calendário"&&url.searchParams.has("ms");
+  let changed=false;
+  for(const key of ["page",...(isMicrosoftReturn?[]:["section","ms"])]){
+   if(url.searchParams.has(key)){url.searchParams.delete(key);changed=true;}
+  }
+  if(changed)window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
  },[nav,navRestored]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  async function commercialRequest(payload){
