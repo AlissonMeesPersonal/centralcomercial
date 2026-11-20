@@ -48,21 +48,31 @@ function parseDate(value){
 function cleanPhone(phone){return String(phone??"").replace(/\D/g,"");}
 function makeScript(endpoint,token){
  return [
-  "// 26fit Central Comercial - integração Black Friday / Google Sheets",
-  "// Cole no Apps Script da PLANILHA DE RESPOSTAS, não no formulário.",
-  'const BLACK_26FIT_URL = '+JSON.stringify(endpoint)+';',
-  'const BLACK_26FIT_TOKEN = '+JSON.stringify(token)+';',
+  "// 26fit Central Comercial • Captacao Black26",
+  "// Execute black26fitAtivarIntegracao UMA VEZ. O script importa dados antigos e",
+  "// registra o acionador para novas respostas. Nao publique este codigo.",
+  'const BLACK26_API = '+JSON.stringify(endpoint)+';',
+  'const BLACK26_CHAVE = '+JSON.stringify(token)+';',
+  'const BLACK26_PLANILHA = "1itsdYErCGmCZ0ETjaOc0tGZoMu0H0_ZH_GiD73Pf89U";',
+  'const BLACK26_ABA = "Respostas ao formulário 1";',
+  "",
+  "function black26fitPlanilha() {",
+  "  const planilha = SpreadsheetApp.getActiveSpreadsheet();",
+  "  if (planilha.getId() !== BLACK26_PLANILHA) throw new Error('Planilha diferente da autorizada.');",
+  "  return planilha;",
+  "}",
   "",
   "function black26fitEnviarLote(aba, inicio, quantidade) {",
-  "  const planilha = SpreadsheetApp.getActiveSpreadsheet();",
+  "  const planilha = black26fitPlanilha();",
+  "  if (aba.getName() !== BLACK26_ABA) throw new Error('Aba de respostas inesperada.');",
   "  const largura = aba.getLastColumn();",
   "  const headers = aba.getRange(1, 1, 1, largura).getDisplayValues()[0];",
   "  const rows = aba.getRange(inicio, 1, quantidade, largura).getDisplayValues();",
   "  const rowNumbers = rows.map((r, i) => inicio + i);",
   "  const payload = { headers, rows, rowNumbers, sourceId: planilha.getId() + ':' + aba.getSheetId() };",
-  "  const resposta = UrlFetchApp.fetch(BLACK_26FIT_URL, {",
+  "  const resposta = UrlFetchApp.fetch(BLACK26_API, {",
   "    method: 'post', contentType: 'application/json',",
-  "    headers: { Authorization: 'Bearer ' + BLACK_26FIT_TOKEN },",
+  "    headers: { Authorization: 'Bearer ' + BLACK26_CHAVE },",
   "    payload: JSON.stringify(payload), muteHttpExceptions: true",
   "  });",
   "  if (resposta.getResponseCode() !== 200) {",
@@ -71,18 +81,26 @@ function makeScript(endpoint,token){
   "}",
   "",
   "function black26fitAoEnviarFormulario(evento) {",
-  "  if (!evento || !evento.range) throw new Error('Instale o acionador Ao enviar formulário na planilha.');",
+  "  if (!evento || !evento.range) throw new Error('Acionador de formulario nao instalado.');",
+  "  if (evento.range.getSheet().getName() !== BLACK26_ABA) return;",
   "  black26fitEnviarLote(evento.range.getSheet(), evento.range.getRow(), 1);",
   "}",
   "",
   "function black26fitImportarRespostasAnteriores() {",
-  "  const planilha = SpreadsheetApp.getActiveSpreadsheet();",
-  "  const aba = planilha.getSheets().find(s => /respost|form response/i.test(s.getName()));",
-  "  if (!aba) throw new Error('Não encontrei a aba de respostas. Ajuste a busca para o nome correto.');",
+  "  const aba = black26fitPlanilha().getSheetByName(BLACK26_ABA);",
+  "  if (!aba) throw new Error('A aba de respostas nao foi encontrada.');",
   "  const fim = aba.getLastRow();",
   "  for (let inicio = 2; inicio <= fim; inicio += 100) {",
   "    black26fitEnviarLote(aba, inicio, Math.min(100, fim - inicio + 1));",
   "  }",
+  "}",
+  "",
+  "function black26fitAtivarIntegracao() {",
+  "  const planilha = black26fitPlanilha();",
+  "  const existente = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'black26fitAoEnviarFormulario');",
+  "  if (!existente) ScriptApp.newTrigger('black26fitAoEnviarFormulario').forSpreadsheet(planilha).onFormSubmit().create();",
+  "  black26fitImportarRespostasAnteriores();",
+  "  Logger.log('Integracao Black26 ativada. Novas respostas serao enviadas a Central.');",
   "}"
  ].join("\n");
 }
@@ -93,7 +111,7 @@ export default function BlackFridayDashboard(){
  const [file,setFile]=useState(null),[header,setHeader]=useState([]),[rows,setRows]=useState([]),[mapping,setMapping]=useState({});
  const [preview,setPreview]=useState(null),[progress,setProgress]=useState("");
  const [edits,setEdits]=useState({}),[page,setPage]=useState(0);
- const [generated,setGenerated]=useState(null),[sourceLabel,setSourceLabel]=useState("Respostas Google Forms - Black Friday");
+ const [generated,setGenerated]=useState(null),[sourceLabel,setSourceLabel]=useState("26fit | Catraca Livre Semana Black26 (respostas)");
  const refresh=async()=>{
   try{
    const query=new URLSearchParams(filters);
@@ -249,14 +267,14 @@ export default function BlackFridayDashboard(){
   </section>
   <section className="panel cc-black-integration">
    <div className="section-title"><div><h3><Link2 size={17}/> Integrar respostas do Google Forms automaticamente</h3><p>Conexão segura com o Google Sheets, sem publicar contatos na internet.</p></div></div>
-   <p><ShieldCheck size={15}/> Configure uma vez na planilha de respostas: o Apps Script enviará novos cadastros à Central ao receber cada formulário.</p>
+   <p><ShieldCheck size={15}/> Planilha oficial identificada: <a href="https://docs.google.com/spreadsheets/d/1itsdYErCGmCZ0ETjaOc0tGZoMu0H0_ZH_GiD73Pf89U/edit" target="_blank" rel="noopener noreferrer">26fit | Catraca Livre Semana Black26 (respostas)</a>. Aba: <strong>Respostas ao formulário 1</strong>. A primeira importação foi realizada; ative o Apps Script uma única vez para receber novas respostas automaticamente.</p>
    <div className="cc-black-source-actions">
     <input value={sourceLabel} maxLength={120} onChange={e=>setSourceLabel(e.target.value)} aria-label="Nome da integração"/>
     <button className="btn" disabled={busy||sourceLabel.trim().length<3} onClick={()=>sourceAction("create_webhook")}><Link2 size={15}/> Gerar integração segura</button>
    </div>
    {generated&&<div className="cc-black-script">
     <strong>Integração criada — copie o código abaixo agora.</strong>
-    <p>A chave não poderá ser consultada novamente. No Google Sheets abra Extensões → Apps Script, cole o código, salve, execute a função black26fitImportarRespostasAnteriores uma vez e crie um acionador do tipo "Ao enviar formulário" para black26fitAoEnviarFormulario.</p>
+    <p>A chave não poderá ser consultada novamente. Na planilha vinculada acima, abra Extensões → Apps Script, cole o código e salve. Selecione a função black26fitAtivarIntegracao, clique em Executar e autorize a conta Google. O próprio script cria o acionador Ao enviar formulário e sincroniza as respostas existentes. Não compartilhe o código com a chave fora da equipe autorizada.</p>
     <textarea readOnly rows={13} value={generated.script}/>
     <button className="btn secondary" onClick={()=>navigator.clipboard.writeText(generated.script)}><Copy size={15}/> Copiar código da integração</button>
    </div>}
