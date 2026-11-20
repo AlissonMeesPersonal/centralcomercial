@@ -21,7 +21,7 @@ export async function GET(request){
   const sql=database();
   const managed=isManager(access.role);
   const events=await sql.query(
-   "SELECT e.id,e.kind,e.title,e.description,e.unit_id,e.unit_ids,e.location,e.starts_at,e.ends_at,e.owner_email,e.status,e.revision,e.external_task_id,e.created_at,COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM cc_calendar_attendees a WHERE a.event_id=e.id),ARRAY[]::text[]) AS attendees FROM cc_calendar_events e WHERE EXTRACT(YEAR FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(e.owner_email)=$4 OR EXISTS(SELECT 1 FROM cc_calendar_attendees a WHERE a.event_id=e.id AND lower(a.email)=$4)) ORDER BY e.starts_at ASC LIMIT 2000",
+   "SELECT e.id,e.kind,e.title,e.description,e.unit_id,e.unit_ids,e.location,e.starts_at,e.ends_at,e.owner_email,e.status,e.revision,e.external_task_id,e.created_at,COALESCE((SELECT array_agg(a.email ORDER BY a.email) FROM cc_calendar_attendees a WHERE a.event_id=e.id),ARRAY[]::text[]) AS attendees FROM cc_calendar_events e WHERE e.deleted_at IS NULL AND (e.external_task_id IS NULL OR NOT EXISTS (SELECT 1 FROM cc_commercial_tasks t WHERE t.id=e.external_task_id AND t.payload ? 'deletedAt')) AND EXTRACT(YEAR FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM e.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(e.owner_email)=$4 OR EXISTS(SELECT 1 FROM cc_calendar_attendees a WHERE a.event_id=e.id AND lower(a.email)=$4)) ORDER BY e.starts_at ASC LIMIT 2000",
    [year,month,managed,access.email]
   );
   const microsoftEvents=await sql.query(
@@ -63,6 +63,7 @@ export async function PATCH(request){
   const sql=database();
   const existing=await sql.query("SELECT * FROM cc_calendar_events WHERE id=$1::uuid LIMIT 1",[id]);
   if(!existing.length)return error("Evento não encontrado.",404);
+  if(existing[0].deleted_at)return error("Este compromisso já foi excluído.",409);
   if(!canManage(access,existing[0]))return error("Somente a pessoa organizadora ou a gestão pode editar.",403);
   if(existing[0].kind==="prazo_demanda")return error("Prazos de demandas são atualizados pela própria demanda.",403);
   let data;try{data=validateCalendarInput(body);await checkCalendarScope(access,data);}
@@ -76,4 +77,32 @@ export async function PATCH(request){
   if(revision===-2)return error("Evento não encontrado.",404);
   return respond({ok:true,id,revision});
  }catch{return error("Não foi possível atualizar o evento.",503);}
+}
+
+export async function DELETE(request){
+ try{
+  if(!originOk(request))return error("Origem não autorizada.",403);
+  if(Number(request.headers.get("content-length")||0)>2000)return error("Solicitação excessiva.",413);
+  const access=await getAccess();
+  if(!access.signedIn)return error("Faça login.",401);
+  if(!access.allowed)return error("Acesso não autorizado.",403);
+  let body;try{body=await request.json();}catch{return error("Dados inválidos.",400);}
+  const id=String(body?.id||""),revision=Number(body?.revision);
+  if(!/^[a-f0-9-]{36}$/i.test(id)||!Number.isSafeInteger(revision)||revision<1)return error("Identificador ou revisão inválidos.",422);
+  const sql=database();
+  const current=await sql.query("SELECT * FROM cc_calendar_events WHERE id=$1::uuid LIMIT 1",[id]);
+  if(!current.length)return error("Compromisso não encontrado.",404);
+  if(current[0].deleted_at)return error("Compromisso já excluído.",409);
+  if(!canManage(access,current[0]))return error("Apenas o organizador ou a gestão pode excluir.",403);
+  if(current[0].kind==="prazo_demanda")return error("Este agendamento pertence a uma demanda. Exclua ou arquive a demanda correspondente.",409);
+  const rows=await sql.query(
+   "WITH changed AS (UPDATE cc_calendar_events SET deleted_at=now(),deleted_by=$3,status='cancelado',revision=revision+1,updated_at=now() WHERE id=$1::uuid AND revision=$2 AND deleted_at IS NULL RETURNING *), audited AS (INSERT INTO cc_calendar_audit(event_id,actor_email,action,revision,before_data,after_data) SELECT id,$3,'deleted',revision,$4::jsonb,to_jsonb(changed) FROM changed RETURNING event_id) SELECT id,revision FROM changed",
+   [id,revision,access.email,JSON.stringify(current[0])]
+  );
+  if(!rows.length)return error("O compromisso foi alterado em outra sessão. Atualize a agenda e tente novamente.",409);
+  return respond({ok:true,id,revision:rows[0].revision});
+ }catch(e){
+  console.error("calendar delete failed",e?.code||"unknown");
+  return error("Não foi possível excluir o agendamento.",503);
+ }
 }
