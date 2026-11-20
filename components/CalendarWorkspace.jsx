@@ -115,6 +115,27 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
   }
   setDraft(toDraft(entry.original));setFormError("");
  }
+ // Abre o compromisso exato quando a pessoa clica em um aviso
+ // central ou em uma notificação Web Push de outra aba.
+ useEffect(()=>{
+  const openReminder=()=>{
+   if(state.loading)return;
+   const params=new URLSearchParams(window.location.search);
+   const id=params.get("reminder");
+   if(!id)return;
+   const event=state.events.find(item=>item.reminder_key===id);
+   if(!event)return;
+   openEntry({source:"event",original:event});
+   const url=new URL(window.location.href);
+   url.searchParams.delete("reminder");
+   url.searchParams.delete("section");
+   window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
+  };
+  window.addEventListener("26fit:reminder-open",openReminder);
+  openReminder();
+  return ()=>window.removeEventListener("26fit:reminder-open",openReminder);
+ },[state.events,state.loading,tasks,onOpenTask]);
+
  function dateToISOString(value){
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))throw Error("Informe data e horário válidos.");
   const utc=new Date(value+":00-03:00");

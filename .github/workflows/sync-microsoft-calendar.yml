@@ -17,7 +17,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Importar compromissos das contas conectadas
         shell: bash
@@ -36,5 +36,21 @@ jobs:
           # branch main, repositório, workflow e audiência.
           curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
             --max-time 75 -H "Authorization: Bearer ${oidc_token}" \
+            -H "Accept: application/json" "${SYNC_URL}"
+          echo
+
+      - name: Enviar notificacoes Web Push dos compromissos no horario
+        shell: bash
+        env:
+          SYNC_URL: https://centralcomercial-eta.vercel.app/api/cron/due-notifications
+        run: |
+          set -euo pipefail
+          audience="$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SYNC_URL"],safe=""))')"
+          oidc_response="$(curl --fail-with-body --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}")"
+          oidc_token="$(python3 -c 'import json,sys;print(json.load(sys.stdin)["value"])' <<< "$oidc_response")"
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
+            --max-time 55 -H "Authorization: Bearer ${oidc_token}" \
             -H "Accept: application/json" "${SYNC_URL}"
           echo

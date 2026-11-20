@@ -13,9 +13,10 @@ import BlackFridayDashboard from "./BlackFridayDashboard";
 import DateCalendarInput from "./DateCalendarInput";
 import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
+import ReminderCenter from "./ReminderCenter";
 import { authClient } from "../lib/auth/client";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard, ClipboardList, Megaphone, CalendarDays, Building2,
   BookOpen, History, Archive, UsersRound, Settings2, Search, Plus, Bell, ArrowUpRight,
@@ -137,7 +138,8 @@ export default function Home({accessRole}) {
   const params=new URLSearchParams(window.location.search);
   let next="Visão geral";
   const microsoftReturn=params.has("ms")&&params.get("section")==="calendar";
-  if(microsoftReturn){
+  const reminderReturn=params.has("reminder");
+  if(microsoftReturn||reminderReturn){
    next="Calendário";
   }else{
    try{
@@ -338,6 +340,14 @@ export default function Home({accessRole}) {
  const publicTypes=[...new Set(units.filter(u=>!u.demo&&u.type).map(u=>u.type))].sort();
  function notify(s){setToast(s);setTimeout(()=>setToast(""),3600);}
  function moveNav(n){setNav(n);setMobile(false);}
+ const openReminder=useCallback(id=>{
+  const url=new URL(window.location.href);
+  url.searchParams.set("section","calendar");
+  url.searchParams.set("reminder",id);
+  window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
+  setNav("Calendário");setMobile(false);
+  window.dispatchEvent(new Event("26fit:reminder-open"));
+ },[]);
  const filtered=useMemo(()=>tasks.filter(t=>{
   const search=(t.title+" "+t.objective+" "+t.owner+" "+t.category+" "+(units.find(u=>u.id===t.unitId)?.name||"")).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
   const q=filter.q.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -681,7 +691,7 @@ export default function Home({accessRole}) {
   </aside>
   {mobile&&<button aria-label="Fechar menu" className="mobile-mask" onClick={()=>setMobile(false)}/>}
   <div className="workspace">
-   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><button type="button" className="btn secondary" onClick={handleSignOut} disabled={signingOut} aria-label="Sair da conta" title="Encerrar sessão"><LogOut size={16}/>{signingOut?" Saindo…":" Sair"}</button></div></header>
+   <header className="topbar"><div className="top-left"><button className="mobile-menu" onClick={()=>setMobile(true)}><Menu size={21}/></button><span>Central Comercial</span><span className="crumb">/</span><strong>{nav}</strong><span className={"cc-sync-indicator "+(syncState.status==="ready"?"online":"offline")} title={syncState.status==="ready"?"Dados compartilhados no Neon":syncState.error}><span/> {syncState.status==="ready"?"Neon sincronizado":"Sincronização indisponível"}</span></div><div className="top-actions"><ReminderCenter onOpenReminder={openReminder}/><CalendarAlertsBell tasks={tasks} pending={pending} onCalendar={()=>moveNav("Calendário")} onApprovals={()=>quickFilter({stage:"Aguardando aprovação"})}/><button type="button" className="btn secondary" onClick={handleSignOut} disabled={signingOut} aria-label="Sair da conta" title="Encerrar sessão"><LogOut size={16}/>{signingOut?" Saindo…":" Sair"}</button></div></header>
    <main className="main">
    {legacyIssue&&<div className="cc-sync-warning"><AlertTriangle size={17}/><span>{legacyIssue}</span></div>}
    {nav==="Visão geral"&&<>
