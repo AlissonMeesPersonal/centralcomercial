@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import {readSheet} from "read-excel-file/browser";
+import BlackDailyAnimatedRow from "./BlackDailyAnimatedRow";
 import {BarChart3,Download,FileSpreadsheet,Link2,RefreshCcw,Search,MessageCircle,Copy,ShieldCheck,Upload,CheckCircle2,AlertTriangle,Trash2} from "lucide-react";
 
 const fmt=n=>Number(n||0).toLocaleString("pt-BR");
@@ -180,7 +181,21 @@ export default function BlackFridayDashboard({isDeveloper=false}){
    setData(result);setError("");
   }catch(e){setError(e.message||"Falha ao atualizar a campanha.");}
  };
- useEffect(()=>{void refresh();const timer=setInterval(()=>{if(document.visibilityState==="visible")void refresh();},20000);return()=>clearInterval(timer);},[filters.unit,filters.status,filters.q]);
+ // O formulário do Google envia leads diretamente ao Neon. A consulta periódica
+ // atualiza os indicadores, e as barras transitam para as novas proporções.
+ useEffect(()=>{
+  void refresh();
+  const check=()=>{if(document.visibilityState==="visible")void refresh();};
+  const timer=setInterval(check,15000);
+  const onVisible=()=>{if(document.visibilityState==="visible")void refresh();};
+  document.addEventListener("visibilitychange",onVisible);
+  window.addEventListener("focus",check);
+  return ()=>{
+   clearInterval(timer);
+   document.removeEventListener("visibilitychange",onVisible);
+   window.removeEventListener("focus",check);
+  };
+ },[filters.unit,filters.status,filters.q]);
  const records=data.leads||[];
  const pageSize=25,pages=Math.max(1,Math.ceil(records.length/pageSize));
  const listed=records.slice(page*pageSize,(page+1)*pageSize);
@@ -297,20 +312,10 @@ export default function BlackFridayDashboard({isDeveloper=false}){
     {progress&&<p>{progress}</p>}
    </section>
    <section className="panel cc-black-graph">
-    <div className="section-title"><div><h3><BarChart3 size={17}/> Cadastros por dia</h3><p>Leads recebidos em cada data · horário de Brasília</p></div></div>
-    {chart.length?<div className="cc-black-daily-chart">{chart.map(x=>{
-      const amount=Number(x.leads)||0;
-      const dateLabel=x.day.slice(8,10)+"/"+x.day.slice(5,7)+"/"+x.day.slice(0,4);
-      return <div className="cc-black-daily-row" key={x.day}>
-       <div className="cc-black-daily-labels">
-        <span className="cc-black-daily-date">{dateLabel}</span>
-        <strong className="cc-black-daily-total">{fmt(amount)} <span>{amount===1?"lead":"leads"}</span></strong>
-       </div>
-       <div className="cc-black-daily-track" role="img" aria-label={dateLabel+": "+fmt(amount)+" "+(amount===1?"lead":"leads")}>
-        <span style={{width:(100*amount/max)+"%"}}/>
-       </div>
-      </div>;
-     })}</div>:<p className="cc-black-empty">O gráfico será preenchido depois de importar respostas com data.</p>}
+    <div className="section-title"><div><h3><BarChart3 size={17}/> Cadastros por dia</h3><p>Atualização automática a cada 15 segundos · horário de Brasília</p></div></div>
+    {chart.length?<div className="cc-black-daily-chart">
+     {chart.map((entry,index)=><BlackDailyAnimatedRow key={entry.day} day={entry.day} amount={entry.leads} maxAmount={max} index={index}/>)}
+    </div>:<p className="cc-black-empty">O gráfico será preenchido depois de importar respostas com data.</p>}
     <p className="cc-black-note">Conversão = leads marcados como convertidos ÷ cadastros totais. Não representa vendas confirmadas sem atualização do status pela equipe.</p>
    </section>
   </div>
