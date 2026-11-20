@@ -106,6 +106,7 @@ export default function Home({accessRole}) {
  const [assignedUnitIds,setAssignedUnitIds]=useState([]);
  const [legacyIssue,setLegacyIssue]=useState("");
  const [nav,setNav]=useState("Visão geral"),[view,setView]=useState("Kanban"),[filter,setFilter]=useState({q:"",unit:"",priority:"",stage:"",campaign:"",category:"",owner:"",period:""});
+ const [navRestored,setNavRestored]=useState(false);
  const [drawer,setDrawer]=useState(null),[editing,setEditing]=useState(null),[campaignDraft,setCampaignDraft]=useState(null);
  const [detailCamp,setDetailCamp]=useState(null),[month,setMonth]=useState(new Date().getMonth()),[year,setYear]=useState(new Date().getFullYear());
  const [toast,setToast]=useState(""),[error,setError]=useState(""),[mobile,setMobile]=useState(false);
@@ -116,6 +117,8 @@ export default function Home({accessRole}) {
    try{
     const result=await authClient.signOut();
     if(result?.error)throw new Error(result.error.message||"Não foi possível encerrar a sessão.");
+    // Logout encerra também a preferência da aba: próximo acesso abre Visão geral.
+    try{window.sessionStorage.removeItem("26fit-central-active-section-v1");}catch{}
     // Navegação completa remove o painel da memória do cliente e força uma nova validação no servidor.
     window.location.replace("/auth/sign-in");
    }catch(e){
@@ -125,7 +128,37 @@ export default function Home({accessRole}) {
   }
  const [directoryFilter,setDirectoryFilter]=useState({q:"",state:"",region:"",status:"",kind:"",coordinator:""});
  const [showDemoUnits,setShowDemoUnits]=useState(false);
- useEffect(()=>{if(typeof window!=="undefined"){const page=new URLSearchParams(window.location.search).get("page");if(page==="manage-units")setNav("Gerenciar unidades");else if(page==="churn")setNav("Churn das unidades");else if(page==="history")setNav("Histórico");else if(page==="calendar"||new URLSearchParams(window.location.search).get("section")==="calendar"||new URLSearchParams(window.location.search).has("ms"))setNav("Calendário");}},[]);
+ // Na primeira abertura desta aba, inicia em Visão geral. Durante a mesma
+ // sessão de navegação, F5/refresh mantém a seção que a pessoa estava usando.
+ // Links diretos (por exemplo, retorno do Microsoft OAuth) têm precedência.
+ useEffect(()=>{
+  const params=new URLSearchParams(window.location.search);
+  const page=params.get("page");
+  let next="Visão geral";
+  if(page==="manage-units")next="Gerenciar unidades";
+  else if(page==="churn")next="Churn das unidades";
+  else if(page==="history")next="Histórico";
+  else if(page==="calendar"||params.get("section")==="calendar"||params.has("ms"))next="Calendário";
+  else{
+   try{
+    const saved=window.sessionStorage.getItem("26fit-central-active-section-v1");
+    const allowed=NAV.some(([name])=>name===saved)&&
+     (saved!=="Churn das unidades"||["developer","admin","gestor","lider"].includes(accessRole))&&
+     (saved!=="Histórico"||["developer","admin","gestor"].includes(accessRole))&&
+     (saved!=="Levantamento comercial"||["developer","admin"].includes(accessRole))&&
+     (saved!=="Black Friday • Leads"||["developer","admin","gestor"].includes(accessRole))&&
+     (!["Gerenciar unidades","Configurações","Equipe"].includes(saved)||["developer","admin","gestor"].includes(accessRole));
+    if(allowed)next=saved;
+   }catch{/* Armazenamento privado indisponível: abre a Visão geral. */}
+  }
+  setNav(next);
+  setNavRestored(true);
+ },[accessRole]);
+ useEffect(()=>{
+  if(!navRestored)return;
+  try{window.sessionStorage.setItem("26fit-central-active-section-v1",nav);}
+  catch{/* A navegação continua mesmo se o navegador bloquear storage. */}
+ },[nav,navRestored]);
  const [internalDirectoryState,setInternalDirectoryState]=useState("loading");
  async function commercialRequest(payload){
   sharedBusyRef.current++;
