@@ -47,6 +47,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const [microsoftDetail,setMicrosoftDetail]=useState(null);
  const [dayList,setDayList]=useState(null);
  const [showAllMonth,setShowAllMonth]=useState(true);
+ const [showArchivedEvents,setShowArchivedEvents]=useState(false);
  useEffect(()=>{
   const refresh=()=>{if(document.visibilityState==="visible"&&!draft)setTick(n=>n+1);};
   const timer=setInterval(refresh,10000);
@@ -75,7 +76,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
  const mirrors=new Set(state.events.filter(e=>e.external_task_id).map(e=>e.external_task_id));
  const visibleTasks=useMemo(()=>tasks.filter(t=>t.due&&t.stage!=="Concluído"&&!t.archived),[tasks]);
  const allEntries=useMemo(()=>{
-  const events=state.events.filter(e=>kindFilter==="todos"||e.kind===kindFilter).map(e=>({
+  const events=state.events.filter(e=>(showArchivedEvents||e.status!=="cancelado")&&(kindFilter==="todos"||e.kind===kindFilter)).map(e=>({
    id:"e:"+e.id,day:inBrazil(e.starts_at).slice(0,10),title:e.title,time:formatHour(e.starts_at),kind:e.kind,
    source:"event",status:e.status,original:e
   }));
@@ -85,7 +86,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
     source:"task",status:"agendado",original:t
    }));
   return [...events,...duties].sort((a,b)=>(a.day+a.time).localeCompare(b.day+b.time));
- },[state.events,visibleTasks,kindFilter]);
+ },[state.events,visibleTasks,kindFilter,showArchivedEvents]);
  const byDay=useMemo(()=>{
   const groups=new Map();
   for(const event of allEntries){const value=groups.get(event.day)||[];value.push(event);groups.set(event.day,value);}
@@ -120,14 +121,15 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
   if(!Number.isFinite(utc.getTime())||inBrazil(utc)!==value)throw Error("Data ou horário inválido.");
   return utc.toISOString();
  }
- async function save(){
+ async function save(statusOverride=null){
   if(saving||!draft)return;
+  if(statusOverride==="cancelado"&&!window.confirm("Arquivar este compromisso? Ele sairá da agenda ativa e poderá ser restaurado depois."))return;
   setSaving(true);setFormError("");
   try{
    const request={
     kind:draft.kind,title:draft.title.trim(),description:draft.description||"",unitId:draft.unitIds?.length===1?draft.unitIds[0]:null,unitIds:draft.unitIds||[],
     location:draft.location||"",startsAt:dateToISOString(draft.startsLocal),
-    endsAt:dateToISOString(draft.endsLocal),attendees:draft.attendees||[],status:draft.status
+    endsAt:dateToISOString(draft.endsLocal),attendees:draft.attendees||[],status:statusOverride||draft.status
    };
    if(new Date(request.endsAt)<=new Date(request.startsAt))throw Error("O horário final deve ser posterior ao inicial.");
    if(draft.id){request.id=draft.id;request.revision=draft.revision;}
@@ -139,6 +141,23 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    if(!response.ok)throw Error(body.error||"Não foi possível salvar o evento.");
    setDraft(null);setSelectedDay(null);setTick(n=>n+1);window.dispatchEvent(new Event("26fit:calendar-updated"));
   }catch(e){setFormError(e.message||"Não foi possível salvar.");}
+  finally{setSaving(false);}
+ }
+ async function deleteAppointment(){
+  if(saving||!draft?.id||draft.kind==="prazo_demanda")return;
+  if(!window.confirm("Excluir este agendamento da agenda? Os detalhes ficarão registrados no histórico de auditoria do Neon."))return;
+  setSaving(true);setFormError("");
+  try{
+   const response=await fetch("/api/calendar",{
+    method:"DELETE",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({id:draft.id,revision:draft.revision})
+   });
+   const data=await response.json();
+   if(!response.ok)throw Error(data.error||"Não foi possível excluir.");
+   setDraft(null);setSelectedDay(null);setTick(n=>n+1);
+   window.dispatchEvent(new Event("26fit:calendar-updated"));
+  }catch(e){setFormError(e.message||"Falha ao excluir agendamento.");}
   finally{setSaving(false);}
  }
  function canEdit(entry){return state.canManageNetwork||entry.owner_email?.toLowerCase()===state.currentEmail.toLowerCase();}
@@ -167,6 +186,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
     <div className="cc-agenda-calendar-top">
      <div><h3>{heading}</h3><small>{state.loading?"Atualizando agenda compartilhada…":"Horário de Brasília (America/Sao_Paulo)"}</small></div>
      <div className="cc-agenda-calendar-actions">
+      <label className="cc-agenda-archive-toggle"><input type="checkbox" checked={showArchivedEvents} onChange={e=>setShowArchivedEvents(e.target.checked)}/> Mostrar arquivados ({state.events.filter(e=>e.status==="cancelado").length})</label>
       <select aria-label="Filtrar tipo de compromisso" value={kindFilter} onChange={e=>setKindFilter(e.target.value)}>
        <option value="todos">Todos os compromissos</option>{Object.entries(KINDS).map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select>
@@ -237,7 +257,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
    <div className="cc-agenda-modal" role="dialog" aria-modal="true" aria-label={draft.id?"Editar compromisso":"Novo compromisso"}>
     <div className="cc-agenda-modal-head"><div><div className="eyebrow">CENTRAL COMERCIAL • AGENDA</div><h2>{draft.id?"Detalhes do compromisso":"Novo compromisso"}</h2></div><button onClick={()=>!saving&&setDraft(null)} aria-label="Fechar"><X size={20}/></button></div>
     <div className="cc-agenda-modal-content">
-     {draft.kind==="prazo_demanda"&&<div className="cc-agenda-reminder-info">Este prazo pertence a uma demanda. Abra a demanda no navegador em que ela foi criada para alterar os dados.</div>}
+     {draft.kind==="prazo_demanda"&&<div className="cc-agenda-reminder-info">Este prazo pertence a uma demanda. Para arquivar ou excluir o prazo, abra a demanda correspondente na Central.</div>}
      {formError&&<div role="alert" className="validation"><AlertCircle size={17}/>{formError}</div>}
      <div className="cc-agenda-form-grid">
       <label className="cc-agenda-field"><span>Título *</span><input required maxLength={160} value={draft.title} onChange={e=>setDraft(d=>({...d,title:e.target.value}))} placeholder="Ex.: Reunião de resultados da rede"/></label>
@@ -266,7 +286,14 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
       <div className="cc-agenda-reminder-info"><Bell size={17}/><span>Os avisos visuais aparecem na Central. Assim que o serviço de e-mail estiver configurado, os participantes receberão lembretes no dia anterior e no próprio dia (na rotina diária).</span></div>
      </div>
     </div>
-    <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setDraft(null)} disabled={saving}>Cancelar</button><button className="btn" onClick={save} disabled={saving||draft.kind==="prazo_demanda"||(draft.id&&!canEdit(state.events.find(e=>e.id===draft.id)||{}))}><Save size={16}/>{saving?"Salvando…":"Salvar compromisso"}</button></div>
+    <div className="cc-agenda-modal-footer cc-agenda-action-footer">
+     {draft.id&&draft.kind!=="prazo_demanda"&&canEdit(state.events.find(e=>e.id===draft.id)||{})&&<>
+      <button type="button" className="btn danger" disabled={saving} onClick={deleteAppointment}><X size={16}/> Excluir agendamento</button>
+      <button type="button" className="btn secondary" disabled={saving} onClick={()=>save(draft.status==="cancelado"?"agendado":"cancelado")}><Archive size={16}/>{draft.status==="cancelado"?"Restaurar":"Arquivar"}</button>
+     </>}
+     <button type="button" className="btn secondary" onClick={()=>setDraft(null)} disabled={saving}>Cancelar</button>
+     <button type="button" className="btn" onClick={()=>save()} disabled={saving||draft.kind==="prazo_demanda"||(draft.id&&!canEdit(state.events.find(e=>e.id===draft.id)||{}))}><Save size={16}/>{saving?"Salvando…":"Salvar compromisso"}</button>
+    </div>
    </div>
   </div>}
  </section>;
