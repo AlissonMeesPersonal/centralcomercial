@@ -16,7 +16,7 @@ export default function BlackDailyAnimatedRow({day,amount,maxAmount,index=0}){
  const scale=Math.max(1,asInt(maxAmount));
  const targetPercent=Math.max(0,Math.min(100,(100*value)/scale));
  const label=day.slice(8,10)+"/"+day.slice(5,7)+"/"+day.slice(0,4);
- const delay=Math.min(index,13)*180;
+ const delay=Math.min(index,13)*350;
 
  useEffect(()=>{
   const element=rootRef.current;
@@ -48,9 +48,11 @@ export default function BlackDailyAnimatedRow({day,amount,maxAmount,index=0}){
   const totalChange=Math.abs(value-initial.count)+Math.abs(targetPercent-initial.percent);
   if(totalChange<0.0001)return;
 
-  const duration=1350;
-  // O escalonamento só acontece na primeira apresentação, nunca no polling.
-  const initialDelay=initial.count===0&&initial.percent===0?delay:0;
+  // Entrada mais contemplativa; alterações recebidas ao vivo continuam suaves.
+  const firstAppearance=initial.count===0&&initial.percent===0;
+  const duration=firstAppearance?3300:2300;
+  // Escalonar dias só na primeira apresentação, nunca nas consultas periódicas.
+  const initialDelay=firstAppearance?delay:0;
   let start=null;
   let frame=0;
   let active=true;
@@ -58,7 +60,8 @@ export default function BlackDailyAnimatedRow({day,amount,maxAmount,index=0}){
    if(!active)return;
    if(start===null)start=timestamp;
    const t=Math.min(1,Math.max(0,(timestamp-start-initialDelay)/duration));
-   const easing=1-Math.pow(1-t,3);
+   // Suavização simétrica: acelera gradualmente e desacelera ao final.
+   const easing=(1-Math.cos(Math.PI*t))/2;
    const next={
     count:Math.round(initial.count+(value-initial.count)*easing),
     percent:initial.percent+(targetPercent-initial.percent)*easing
