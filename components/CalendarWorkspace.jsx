@@ -201,14 +201,22 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
        const date=d?dayKey(year,month+1,d):"";
        const entries=byDay.get(date)||[];
        return <div key={i} className={"cc-agenda-day"+(!d?" empty":"")+(date===today?" today":"")+(date===selectedDay?" selected":"")}>
-        {d&&<><button className="cc-agenda-day-number" type="button" onClick={()=>openDate(date)} title="Ver todos os compromissos deste dia">{d}</button>
-         <div className="cc-agenda-day-items">{entries.map(e=><button key={e.id} className={"cc-agenda-chip "+e.kind+" "+e.status} title={e.title} onClick={()=>openEntry(e)}><span>{e.time}</span>{e.title}</button>)}
-          {entries.length>0&&<button type="button" className="cc-agenda-more" onClick={()=>openDate(date)}>Ver lista completa ({entries.length})</button>}
+        {d&&<>
+         <div className="cc-agenda-day-header">
+          <button className="cc-agenda-day-number" type="button" onClick={()=>openDate(date)} aria-label={"Abrir agenda de "+date.split("-").reverse().join("/")}>{d}</button>
+          {entries.length>0&&<button type="button" className="cc-agenda-day-count" onClick={()=>openDate(date)} aria-label={"Ver "+entries.length+" compromissos deste dia"}>{entries.length} {entries.length===1?"evento":"eventos"}</button>}
+         </div>
+         <div className="cc-agenda-day-items">
+          {entries.slice(0,2).map(e=><button key={e.id} type="button" className={"cc-agenda-event-preview "+e.kind+" "+e.status} onClick={()=>openEntry(e)} title={e.time+" · "+e.title}>
+           <span className="cc-agenda-event-time">{e.time}</span>
+           <span className="cc-agenda-event-title">{e.title}</span>
+          </button>)}
+          {entries.length>2&&<button type="button" className="cc-agenda-more" onClick={()=>openDate(date)} aria-label={"Abrir lista com todos os "+entries.length+" compromissos do dia"}><span>+ {entries.length-2} {entries.length===3?"outro":"outros"}</span><ChevronRight size={12}/></button>}
          </div></>}
        </div>;
       })}
     </div>
-    <p className="cc-agenda-hint">Todos os compromissos são exibidos nos dias, com rolagem quando necessário. Clique na data para abrir a lista completa ou agendar.</p>
+    <p className="cc-agenda-hint">Confira horários e títulos nos cartões. Clique no número do dia, na contagem ou em “+ outros” para ver todos os compromissos e agendar.</p>
    </section>
    <aside className="panel cc-agenda-upcoming">
     <div className="cc-agenda-upcoming-heading"><h3>{selectedDay?"Agenda de "+futureLabel(selectedDay):showAllMonth?"Todos os compromissos do mês":"Próximos compromissos"}</h3>
