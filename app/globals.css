@@ -9157,3 +9157,63 @@ td small {
     animation: none;
   }
 }
+
+/* Demonstração acessível pelo sino da Central, sem compromissos de verdade */
+.cc-alert-try {
+  width: calc(100% - 20px);
+  margin: 10px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  border: 1px solid #efd9bd;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #fff9ef 0%, #fff2e1 100%);
+  color: #313b44;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.cc-alert-try:hover {
+  background: #ffeed5;
+  border-color: #eab573;
+  transform: translateY(-1px);
+}
+.cc-alert-try:focus-visible {
+  outline: 2px solid #d98d3b;
+  outline-offset: 2px;
+}
+.cc-alert-try-icon {
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #ffe3bf;
+  color: #b96b20;
+}
+.cc-alert-try-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cc-alert-try-copy strong {
+  color: #5c3c20;
+  font-size: 12px;
+  font-weight: 790;
+}
+.cc-alert-try-copy small {
+  color: #936d4c;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.cc-alert-try > svg {
+  flex: 0 0 auto;
+  color: #b57535;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-alert-try { transition: none; }
+  .cc-alert-try:hover { transform: none; }
+}

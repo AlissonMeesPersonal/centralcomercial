@@ -181,6 +181,66 @@ export default function ReminderCenter({ onOpenReminder }) {
     }
   };
 
+  // Teste manual: não cria evento, não grava dados e não entra na fila
+  // de notificações automáticas. Dispara o mesmo modal usado em produção
+  // e uma notificação local do navegador quando a permissão já foi dada.
+  useEffect(() => {
+    const handleTest = () => {
+      const now = new Date().toISOString();
+      const demo = {
+        id: "test-calendar-notification",
+        title: "Reunião de teste • Central Comercial",
+        description:
+          "Esta é uma demonstração do alerta. Nenhum compromisso foi cadastrado no calendário.",
+        source: "microsoft",
+        startsAt: now,
+        url: "",
+        private: false,
+        demo: true,
+      };
+
+      setShowOnboarding(false);
+      setPageVisible(true);
+      setQueue((previous) => [demo, ...previous.filter((item) => !item.demo)]);
+
+      if (!("Notification" in window) || Notification.permission !== "granted") {
+        return; // O modal aparece mesmo sem autorização do navegador.
+      }
+
+      const options = {
+        body: "Seu aviso de teste está funcionando! Nenhuma reunião foi criada.",
+        tag: "cc-manual-test-" + Date.now(),
+        icon: "/logo_v2.png",
+        data: { url: "/?section=calendar" },
+      };
+
+      if ("serviceWorker" in navigator) {
+        void navigator.serviceWorker
+          .register("/push-sw.js", { scope: "/" })
+          .then((registration) =>
+            registration.showNotification("26Fit • Teste de notificação", options),
+          )
+          .catch(() => {});
+      } else {
+        try {
+          const notification = new Notification("26Fit • Teste de notificação", options);
+          notification.onclick = () => {
+            window.focus();
+            window.location.assign("/?section=calendar");
+            notification.close();
+          };
+        } catch {
+          // O teste do modal continua disponível sem a notificação do sistema.
+        }
+      }
+    };
+
+    window.addEventListener("26fit:test-calendar-notifications", handleTest);
+    return () => {
+      window.removeEventListener("26fit:test-calendar-notifications", handleTest);
+    };
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     const check = async () => {
@@ -271,7 +331,12 @@ export default function ReminderCenter({ onOpenReminder }) {
   const open = () => {
     if (!active) return;
     const id = active.id;
+    const isDemo = !!active.demo;
     dismiss();
+    if (isDemo) {
+      window.location.assign("/?section=calendar");
+      return;
+    }
     onOpenReminder?.(id);
   };
   return (
@@ -412,7 +477,7 @@ export default function ReminderCenter({ onOpenReminder }) {
           >
             <div className="cc-reminder-dialog-top">
               <span>
-                <BellRing size={16} /> AVISO DE COMPROMISSO
+                <BellRing size={16} /> {active.demo ? "SIMULAÇÃO DE AVISO" : "AVISO DE COMPROMISSO"}
               </span>
               <button onClick={dismiss} aria-label="Fechar aviso" type="button">
                 <X size={20} />
@@ -421,7 +486,7 @@ export default function ReminderCenter({ onOpenReminder }) {
             <div className="cc-reminder-emblem">
               <CalendarDays size={29} />
             </div>
-            <p className="cc-reminder-kicker">Está começando agora</p>
+            <p className="cc-reminder-kicker">{active.demo ? "Teste de notificação" : "Está começando agora"}</p>
             <h2>{active.title}</h2>
             <p className="cc-reminder-hour">
               <Clock3 size={16} /> {dateTime(active.startsAt)}
@@ -431,7 +496,7 @@ export default function ReminderCenter({ onOpenReminder }) {
             )}
             <div className="cc-reminder-actions">
               <button className="btn" type="button" onClick={open}>
-                <CalendarDays size={17} /> Ver compromisso
+                <CalendarDays size={17} /> {active.demo ? "Abrir calendário" : "Ver compromisso"}
               </button>
               {!!active.url && /^https:\/\//i.test(active.url) && (
                 <a
@@ -448,7 +513,7 @@ export default function ReminderCenter({ onOpenReminder }) {
               </button>
             </div>
             <p className="cc-reminder-foot">
-              <ShieldCheck size={14} /> Aviso único por compromisso · Horário de Brasília
+              <ShieldCheck size={14} /> {active.demo ? "Apenas teste · Nenhum compromisso criado" : "Aviso único por compromisso · Horário de Brasília"}
             </p>
           </section>
         </div>

@@ -7,6 +7,8 @@ import {
   ClipboardList,
   ChevronRight,
   CheckCircle2,
+  BellRing,
+  Play,
 } from "lucide-react";
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 const hour = (e) =>
@@ -147,6 +149,21 @@ export default function CalendarAlertsBell({ tasks = [], pending = 0, onCalendar
               </button>
             ))
           )}
+          <button
+            type="button"
+            className="cc-alert-try"
+            onClick={() => {
+              setOpen(false);
+              window.dispatchEvent(new Event("26fit:test-calendar-notifications"));
+            }}
+          >
+            <span className="cc-alert-try-icon"><BellRing size={19} /></span>
+            <span className="cc-alert-try-copy">
+              <strong>Testar avisos agora</strong>
+              <small>Simule uma reunião, sem criar eventos</small>
+            </span>
+            <Play size={17} />
+          </button>
           <button
             className="cc-alert-seeall"
             onClick={() => {
