@@ -1333,3 +1333,19 @@
 .cc-black-history p{border-bottom:1px solid #e6ecf1;padding:9px 0;margin:0}
 @media(max-width:1250px){.cc-black-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cc-black-layout{grid-template-columns:1fr}}
 @media(max-width:720px){.cc-black-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.cc-black-kpi{padding:14px}.cc-black-kpi strong{font-size:22px}.cc-black-mapping,.cc-black-filters{grid-template-columns:1fr}.cc-black-source-actions>.btn{width:100%;justify-content:center}}
+
+/* Corrige a quebra do comunicado Google Sheets em telas móveis */
+.cc-black-source-note{display:flex;align-items:flex-start;gap:9px;min-width:0;max-width:100%;white-space:normal}
+.cc-black-source-note>svg{flex:0 0 16px;margin-top:2px}
+.cc-black-source-note>span{display:block;min-width:0;flex:1;overflow-wrap:anywhere;word-break:normal;white-space:normal;line-height:1.65}
+.cc-black-source-note a{display:inline;overflow-wrap:anywhere;color:#9b5c1c;text-decoration:underline;text-underline-offset:2px}
+.cc-black-integration{min-width:0;overflow:hidden}
+.cc-black-integration .section-title h3{overflow-wrap:anywhere}
+.cc-black-source-actions{min-width:0}
+.cc-black-source-actions input{max-width:100%}
+@media(max-width:720px){
+ .cc-black-integration{padding:16px}
+ .cc-black-source-note{gap:10px}
+ .cc-black-source-actions{display:flex;flex-direction:column;align-items:stretch}
+ .cc-black-source-actions input{flex:none;width:100%}
+}
