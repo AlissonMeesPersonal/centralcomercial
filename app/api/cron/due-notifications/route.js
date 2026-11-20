@@ -2,7 +2,7 @@ import { database } from "../../../../lib/db";
 import { githubCronAuthorized } from "../../../../lib/github-oidc-cron";
 import { canSeeDueEvent, dueCalendarEvents } from "../../../../lib/due-events";
 import { pushConfigured, sendWebPush } from "../../../../lib/web-push";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,13 +56,19 @@ export async function GET(request) {
         if (!marker.length) continue;
         claimed++;
         try {
+          const receipt = randomBytes(24).toString("hex");
+          const receiptHash = createHash("sha256").update(receipt).digest("hex");
+          await sql.query(
+            "UPDATE cc_push_deliveries SET receipt_token_hash = $4 WHERE subscription_id = $1 AND event_key = $2 AND starts_at = $3",
+            [sub.id, event.event_key, event.starts_at, receiptHash],
+          );
           const message = {
             title:
               "26Fit • " + (event.kind === "microsoft" ? "Reunião Teams" : "Compromisso agendado"),
             body: event.title.slice(0, 130),
             tag:
               "cc-due-" + event.event_key.slice(0, 90) + "-" + new Date(event.starts_at).getTime(),
-            data: { url: "/?section=calendar&reminder=" + encodeURIComponent(event.event_key) },
+            data: { url: "/?section=calendar&reminder=" + encodeURIComponent(event.event_key), receipt },
           };
           const result = await sendWebPush(sub, message);
           if (result.ok) {

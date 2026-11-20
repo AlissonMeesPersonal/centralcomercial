@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import { database } from "../../../../lib/db";
 import { githubCronAuthorized } from "../../../../lib/github-oidc-cron";
 import { sendWebPush, pushConfigured } from "../../../../lib/web-push";
@@ -58,11 +59,17 @@ export async function GET(request) {
       if (!saved.length) continue;
 
       try {
+        const receipt = randomBytes(24).toString("hex");
+        const receiptHash = createHash("sha256").update(receipt).digest("hex");
+        await sql.query(
+          "UPDATE cc_push_deliveries SET receipt_token_hash = $4 WHERE subscription_id = $1 AND event_key = $2 AND starts_at = $3",
+          [sub.id, key, TEST_TIME, receiptHash],
+        );
         const response = await sendWebPush(sub, {
           title: "26Fit • Teste remoto de notificações",
           body: "A Central está fechada e a notificação chegou! Nenhum compromisso foi criado.",
           tag: "cc-remote-test-" + testId,
-          data: { url: "/?section=calendar" },
+          data: { url: "/?section=calendar", receipt },
         });
 
         if (response.ok) accepted++;
