@@ -104,7 +104,7 @@ function makeScript(endpoint,token){
   "}"
  ].join("\n");
 }
-const BLACK26_FORM_UNITS_SCRIPT = String.raw\`/**
+const BLACK26_FORM_UNITS_SCRIPT = String.raw`/**
  * Black26 - preenche a lista suspensa "Unidade 26fit" automaticamente.
  * Adicione estas funções ao mesmo Código.gs usado para integrar os leads.
  * NÃO substitua BLACK26_API, BLACK26_CHAVE nem as outras funções existentes.
@@ -161,7 +161,7 @@ function black26fitAtivarListaDeUnidades() {
       .timeBased().everyDays(1).atHour(4).create();
   }
   Logger.log('Atualização diária das unidades ativada.');
-}\`;
+}`;
 export default function BlackFridayDashboard({isDeveloper=false}){
  const [data,setData]=useState({summary:{},byUnit:[],byDay:[],leads:[],history:[],sources:[]});
  const [filters,setFilters]=useState({unit:"",status:"",q:""});
