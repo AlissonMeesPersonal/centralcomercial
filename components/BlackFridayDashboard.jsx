@@ -267,7 +267,7 @@ export default function BlackFridayDashboard(){
   </section>
   <section className="panel cc-black-integration">
    <div className="section-title"><div><h3><Link2 size={17}/> Integrar respostas do Google Forms automaticamente</h3><p>Conexão segura com o Google Sheets, sem publicar contatos na internet.</p></div></div>
-   <p><ShieldCheck size={15}/> Planilha oficial identificada: <a href="https://docs.google.com/spreadsheets/d/1itsdYErCGmCZ0ETjaOc0tGZoMu0H0_ZH_GiD73Pf89U/edit" target="_blank" rel="noopener noreferrer">26fit | Catraca Livre Semana Black26 (respostas)</a>. Aba: <strong>Respostas ao formulário 1</strong>. A primeira importação foi realizada; ative o Apps Script uma única vez para receber novas respostas automaticamente.</p>
+   <p className="cc-black-source-note"><ShieldCheck size={15}/><span>Planilha oficial: <a href="https://docs.google.com/spreadsheets/d/1itsdYErCGmCZ0ETjaOc0tGZoMu0H0_ZH_GiD73Pf89U/edit" target="_blank" rel="noopener noreferrer">26fit | Catraca Livre Semana Black26 (respostas)</a>. Aba: <strong>Respostas ao formulário 1</strong>. A primeira importação já foi realizada; ative o Apps Script para receber novos cadastros automaticamente.</span></p>
    <div className="cc-black-source-actions">
     <input value={sourceLabel} maxLength={120} onChange={e=>setSourceLabel(e.target.value)} aria-label="Nome da integração"/>
     <button className="btn" disabled={busy||sourceLabel.trim().length<3} onClick={()=>sourceAction("create_webhook")}><Link2 size={15}/> Gerar integração segura</button>
