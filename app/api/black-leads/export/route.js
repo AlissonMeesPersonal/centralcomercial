@@ -12,7 +12,7 @@ export async function GET(request){
  const url=new URL(request.url),unit=String(url.searchParams.get("unit")||"").trim();
  if(!unit||unit.length>180)return Response.json({error:"Selecione uma unidade para exportar."},{status:422});
  const sql=database();
- const rows=await sql(
+ const rows=await sql.query(
   "SELECT lead_name,phone,email,unit_label,status,notes,response_at,contacted_at,converted_at FROM cc_black_leads WHERE campaign=$1 AND unit_label=$2 ORDER BY response_at ASC NULLS LAST, imported_at ASC LIMIT 30000",
   [CAMPAIGN,unit]
  );
