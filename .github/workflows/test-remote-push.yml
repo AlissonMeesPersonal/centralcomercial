@@ -1,0 +1,50 @@
+name: Teste remoto de notificacoes (Central fechada)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/push-test-request.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enviar push remoto somente se solicitado
+        shell: bash
+        env:
+          SYNC_URL: https://centralcomercial-eta.vercel.app/api/cron/test-push
+        run: |
+          set -euo pipefail
+
+          mode="$(python3 -c 'import json;print(json.load(open(".github/push-test-request.json"))["mode"])')"
+          if [[ "$mode" != "send" ]]; then
+            echo "Modo de espera: nenhum aviso enviado."
+            exit 0
+          fi
+
+          owner_hash="$(python3 -c 'import json;print(json.load(open(".github/push-test-request.json"))["owner_hash"])')"
+          if [[ ! "$owner_hash" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "Destino do teste invalido."
+            exit 1
+          fi
+
+          audience="$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SYNC_URL"],safe=""))')"
+          oidc_response="$(curl --fail-with-body --silent --show-error --max-time 20 \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}")"
+          oidc_token="$(python3 -c 'import json,sys;print(json.load(sys.stdin)["value"])' <<< "$oidc_response")"
+
+          curl --fail-with-body --silent --show-error --retry 2 --retry-delay 2 \
+            --max-time 40 -H "Authorization: Bearer ${oidc_token}" \
+            -H "Accept: application/json" \
+            "${SYNC_URL}?owner_hash=${owner_hash}&test_id=${GITHUB_SHA}"
+          echo
