@@ -1468,3 +1468,24 @@
 @media(prefers-reduced-motion:reduce){
  .cc-overview-bar-track>span{transition:none!important}
 }
+
+/* Detalhes importados da agenda Microsoft: legibilidade e pauta completa */
+.cc-ms-event-details{display:flex;flex-direction:column;gap:22px;color:#273743!important}
+.cc-ms-event-details p,.cc-ms-event-details strong,.cc-ms-event-details span{color:inherit}
+.cc-ms-event-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.cc-ms-event-field{display:flex;flex-direction:column;gap:5px;background:#f6f8fa;border:1px solid #e7ebef;border-radius:9px;padding:13px;min-width:0}
+.cc-ms-event-field>span{font-size:11px;color:#72808d;font-weight:650}
+.cc-ms-event-field>strong{color:#263643;font-size:13px;font-weight:680;overflow-wrap:anywhere}
+.cc-ms-event-section{display:flex;flex-direction:column;gap:10px;min-width:0}
+.cc-ms-event-section>h3{margin:0;display:flex;align-items:center;gap:8px;color:#26333e;font-size:14px;font-weight:750}
+.cc-ms-event-section>h3 svg{color:#e48a2e}
+.cc-ms-event-description{color:#2b3b47;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;background:#fff9f1;border:1px solid #f3dfc5;border-left:3px solid #e99135;border-radius:9px;padding:16px}
+.cc-ms-event-empty{color:#72808a!important;font-size:12px;line-height:1.55}
+.cc-ms-event-participants{display:flex;flex-wrap:wrap;gap:8px}
+.cc-ms-event-participant{display:flex;flex-direction:column;gap:3px;background:#f6f8fa;border:1px solid #e5eaf0;border-radius:8px;padding:9px 12px;max-width:100%;min-width:0}
+.cc-ms-event-participant strong{color:#354451;font-size:12px;overflow-wrap:anywhere}
+.cc-ms-event-participant span{color:#7a8792;font-size:11px;overflow-wrap:anywhere}
+.cc-ms-event-join{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#24292e;color:#fff!important;font-weight:730;font-size:13px;padding:13px 16px;border-radius:9px;text-decoration:none}
+.cc-ms-event-join:hover{background:#343c42;color:#fff!important}
+.cc-ms-event-note{margin-top:auto;color:#72808a!important;font-size:11px!important;line-height:1.5}
+@media(max-width:640px){.cc-ms-event-fields{grid-template-columns:1fr}.cc-ms-event-description{padding:13px}}

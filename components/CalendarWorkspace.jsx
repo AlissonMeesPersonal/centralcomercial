@@ -252,13 +252,30 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
   {microsoftDetail&&<div className="cc-agenda-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setMicrosoftDetail(null);}}>
    <div className="cc-agenda-modal cc-ms-event-modal" role="dialog" aria-modal="true" aria-label="Compromisso Teams">
     <div className="cc-agenda-modal-head"><div><div className="eyebrow">CALENDÁRIO MICROSOFT · SOMENTE LEITURA</div><h2>{microsoftDetail.title}</h2></div><button onClick={()=>setMicrosoftDetail(null)} aria-label="Fechar"><X size={20}/></button></div>
-    <div className="cc-agenda-modal-content">
-     <p><strong>Organizador da conexão:</strong> {microsoftDetail.owner_email}</p>
-     <p><strong>Início:</strong> {new Date(microsoftDetail.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</p>
-     <p><strong>Término:</strong> {new Date(microsoftDetail.ends_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}</p>
-     {!microsoftDetail.is_private&&<><p><strong>Local:</strong> {microsoftDetail.location||"Não informado"}</p>
-     {microsoftDetail.join_url&&<p><a href={microsoftDetail.join_url} target="_blank" rel="noopener noreferrer">Abrir reunião no Microsoft Teams</a></p>}</>}
-     <p className="cc-op-note">Este evento foi importado da agenda Microsoft. Para alterar os horários ou a reunião, utilize a agenda original.</p>
+    <div className="cc-agenda-modal-content cc-ms-event-details">
+     <div className="cc-ms-event-fields">
+      <div className="cc-ms-event-field"><span>Conta Microsoft conectada</span><strong>{microsoftDetail.owner_email}</strong></div>
+      <div className="cc-ms-event-field"><span>Início</span><strong>{new Date(microsoftDetail.starts_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",dateStyle:"short",timeStyle:"short"})}</strong></div>
+      <div className="cc-ms-event-field"><span>Término</span><strong>{new Date(microsoftDetail.ends_at).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",dateStyle:"short",timeStyle:"short"})}</strong></div>
+      {!microsoftDetail.is_private&&<div className="cc-ms-event-field"><span>Local</span><strong>{microsoftDetail.location||"Não informado"}</strong></div>}
+     </div>
+     {!microsoftDetail.is_private&&<>
+      <div className="cc-ms-event-section">
+       <h3><ClipboardList size={16}/> Pauta e descrição da reunião</h3>
+       {microsoftDetail.description?.trim()
+        ?<div className="cc-ms-event-description">{microsoftDetail.description}</div>
+        :<p className="cc-ms-event-empty">Nenhuma pauta informada. Clique em “Sincronizar agora” para atualizar os detalhes da reunião.</p>}
+      </div>
+      {Array.isArray(microsoftDetail.participants)&&microsoftDetail.participants.length>0&&<div className="cc-ms-event-section">
+       <h3><UsersRound size={16}/> Participantes convidados ({microsoftDetail.participants.length})</h3>
+       <div className="cc-ms-event-participants">{microsoftDetail.participants.map((p,index)=><div className="cc-ms-event-participant" key={(p.email||"")+index}>
+        <strong>{p.name||p.email}</strong>{p.name&&p.email&&<span>{p.email}</span>}
+       </div>)}</div>
+      </div>}
+      {/^https:\/\//i.test(microsoftDetail.join_url||"")&&<a className="cc-ms-event-join" href={microsoftDetail.join_url} target="_blank" rel="noopener noreferrer"><Video size={17}/> Participar pelo Microsoft Teams</a>}
+     </>}
+     {microsoftDetail.is_private&&<p className="cc-ms-event-empty">Este compromisso está marcado como privado no Microsoft. A descrição, os convidados e o link não são compartilhados.</p>}
+     <p className="cc-op-note cc-ms-event-note">Compromisso importado do Microsoft Teams, somente leitura. Faça alterações na agenda original; elas serão sincronizadas com a Central.</p>
     </div>
     <div className="cc-agenda-modal-footer"><button className="btn secondary" onClick={()=>setMicrosoftDetail(null)}>Fechar</button></div>
    </div>

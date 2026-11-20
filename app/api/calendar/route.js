@@ -25,7 +25,7 @@ export async function GET(request){
    [year,month,managed,access.email]
   );
   const microsoftEvents=await sql.query(
-   "SELECT m.graph_id AS id,'microsoft'::text AS kind,m.title,''::text AS description,NULL::text AS unit_id,ARRAY[]::text[] AS unit_ids,m.location,m.join_url,m.starts_at,m.ends_at,m.owner_email,'agendado'::text AS status,1::integer AS revision,NULL::text AS external_task_id,m.updated_at AS created_at,ARRAY[]::text[] AS attendees,true AS microsoft_imported,m.is_private FROM cc_microsoft_calendar_events m WHERE EXTRACT(YEAR FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(m.owner_email)=$4) ORDER BY m.starts_at LIMIT 2000",
+   "SELECT m.graph_id AS id,'microsoft'::text AS kind,m.title,CASE WHEN m.is_private THEN '' ELSE m.description END AS description,CASE WHEN m.is_private THEN '[]'::jsonb ELSE m.participants END AS participants,NULL::text AS unit_id,ARRAY[]::text[] AS unit_ids,m.location,m.join_url,m.starts_at,m.ends_at,m.owner_email,'agendado'::text AS status,1::integer AS revision,NULL::text AS external_task_id,m.updated_at AS created_at,ARRAY[]::text[] AS attendees,true AS microsoft_imported,m.is_private FROM cc_microsoft_calendar_events m WHERE EXTRACT(YEAR FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$1 AND EXTRACT(MONTH FROM m.starts_at AT TIME ZONE 'America/Sao_Paulo')=$2 AND ($3::boolean OR lower(m.owner_email)=$4) ORDER BY m.starts_at LIMIT 2000",
    [year,month,managed,access.email]
   );
   const members=await sql.query("SELECT name,email,role FROM cc_team_members WHERE status='active' ORDER BY name LIMIT 1000");
