@@ -1,5 +1,5 @@
 {
-  "mode": "send",
+  "mode": "idle",
   "owner_hash": "e6ee7bdece99eb2da1393572c01057ec661cb0cabaaf8d70a155945622cd6bb2",
-  "note": "Disparo remoto autorizado pelo usuário com Central fechada. Uso único por commit."
+  "note": "Teste concluído: 1 push aceito, 0 falhas. Não reenviar sem novo pedido."
 }
