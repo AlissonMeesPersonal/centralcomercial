@@ -17,16 +17,17 @@ const dateTime = (value) =>
     timeStyle: "short",
   });
 const destination = (id) => "/?section=calendar&reminder=" + encodeURIComponent(id);
+const ONBOARDING_SESSION_KEY = "cc-reminder-notification-onboarding-v1";
 
 export default function ReminderCenter({ onOpenReminder }) {
   const [permission, setPermission] = useState("checking");
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [queue, setQueue] = useState([]);
   const [pageVisible, setPageVisible] = useState(true);
   const polling = useRef(false);
   const observed = useRef(new Set());
-  const initialized = useRef(false);
   const active = queue[0] || null;
 
   const notifyNative = useCallback(
@@ -62,13 +63,73 @@ export default function ReminderCenter({ onOpenReminder }) {
     [onOpenReminder],
   );
 
+  // Detecta a permissão e uma inscrição anterior antes de mostrar o convite,
+  // evitando pedir ativação a quem já recebe notificações neste navegador.
   useEffect(() => {
-    if (!("Notification" in window)) {
-      setPermission("unsupported");
+    let mounted = true;
+
+    async function initialize() {
+      if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+        if (mounted) setPermission("unsupported");
+        return;
+      }
+
+      let state = Notification.permission;
+
+      if (state === "granted") {
+        try {
+          const registration = await navigator.serviceWorker.register("/push-sw.js", {
+            scope: "/",
+          });
+          const subscription = await registration.pushManager?.getSubscription();
+
+          if (subscription) {
+            const response = await fetch("/api/notifications/push", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(subscription.toJSON()),
+            });
+
+            if (response.ok) state = "enabled";
+          }
+        } catch {
+          // A Central continua funcionando mesmo se o serviço push estiver fora.
+        }
+      }
+
+      if (mounted) setPermission(state);
+    }
+
+    void initialize();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Mostra uma única vez por sessão. Se a pessoa optar por "Agora não",
+  // o convite volta apenas no próximo login (não a cada atualização da página).
+  useEffect(() => {
+    if (permission !== "default" && permission !== "granted") {
+      setShowOnboarding(false);
       return;
     }
-    setPermission(Notification.permission);
-  }, []);
+
+    try {
+      if (window.sessionStorage.getItem(ONBOARDING_SESSION_KEY) === "dismissed") return;
+    } catch {
+      // Modo privado sem storage: o usuário ainda pode escolher.
+    }
+
+    setShowOnboarding(true);
+  }, [permission]);
+
+  const dismissOnboarding = () => {
+    try {
+      window.sessionStorage.setItem(ONBOARDING_SESSION_KEY, "dismissed");
+    } catch {}
+    setShowOnboarding(false);
+  };
 
   const enable = async () => {
     if (busy) return;
@@ -112,6 +173,7 @@ export default function ReminderCenter({ onOpenReminder }) {
       const result = await response.json();
       if (!response.ok) throw Error(result.error || "Não foi possível ativar os avisos.");
       setPermission("enabled");
+      dismissOnboarding();
     } catch (e) {
       setError(e.message || "Não foi possível ativar as notificações.");
     } finally {
@@ -180,29 +242,6 @@ export default function ReminderCenter({ onOpenReminder }) {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [notifyNative]);
-
-  // Revalida a inscrição depois que a permissão já tinha sido concedida
-  // (ex.: usuário trocou de computador ou a inscrição expirou).
-  useEffect(() => {
-    if (permission !== "granted" || initialized.current) return;
-    initialized.current = true;
-    (async () => {
-      try {
-        const reg = await navigator.serviceWorker.register("/push-sw.js", { scope: "/" });
-        const subscription = await reg.pushManager?.getSubscription();
-        if (!subscription) return;
-        await fetch("/api/notifications/push", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(subscription.toJSON()),
-        });
-        setPermission("enabled");
-      } catch {
-        /* A Central permanece funcional sem push. */
-      }
-    })();
-  }, [permission]);
 
   const disable = async () => {
     if (busy) return;
@@ -279,6 +318,69 @@ export default function ReminderCenter({ onOpenReminder }) {
           </span>
         )}
       </div>
+      {showOnboarding && !active && (
+        <div className="cc-reminder-backdrop cc-notification-onboarding-backdrop">
+          <section
+            className="cc-notification-onboarding"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cc-notification-onboarding-title"
+            aria-describedby="cc-notification-onboarding-description"
+          >
+            <div className="cc-notification-onboarding-head">
+              <span className="cc-notification-onboarding-brand">26FIT <span>• CENTRAL COMERCIAL</span></span>
+              <button
+                type="button"
+                onClick={dismissOnboarding}
+                aria-label="Fechar convite para notificações"
+                disabled={busy}
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="cc-notification-onboarding-icon">
+              <BellRing size={31} />
+              <span />
+            </div>
+
+            <span className="cc-notification-onboarding-eyebrow">NÃO PERCA SEUS COMPROMISSOS</span>
+            <h2 id="cc-notification-onboarding-title">Ative os avisos da Central</h2>
+            <p id="cc-notification-onboarding-description">
+              Receba um lembrete quando uma reunião do Teams ou um evento estiver
+              começando, mesmo que você esteja em outra aba do navegador.
+            </p>
+
+            <div className="cc-notification-onboarding-benefits">
+              <div><Clock3 size={18} /><span>Alertas quando chegar o horário da reunião</span></div>
+              <div><CalendarDays size={18} /><span>Acesso rápido ao compromisso no calendário</span></div>
+              <div><ShieldCheck size={18} /><span>Você controla a permissão e pode desativá-la</span></div>
+            </div>
+
+            {error && <p className="cc-notification-onboarding-error" role="alert">{error}</p>}
+
+            <button
+              type="button"
+              className="cc-notification-onboarding-primary"
+              onClick={enable}
+              disabled={busy}
+            >
+              <BellRing size={19} /> {busy ? "Ativando notificações…" : "Ativar notificações"}
+            </button>
+            <button
+              type="button"
+              className="cc-notification-onboarding-skip"
+              onClick={dismissOnboarding}
+              disabled={busy}
+            >
+              Agora não
+            </button>
+            <p className="cc-notification-onboarding-privacy">
+              A permissão será solicitada pelo navegador após clicar em ativar.
+            </p>
+          </section>
+        </div>
+      )}
       {active && pageVisible && (
         <div
           className="cc-reminder-backdrop"

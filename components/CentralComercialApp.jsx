@@ -435,6 +435,7 @@ export default function Home({ accessRole }) {
       // Logout limpa a aba salva; novo login sempre começa em Visão geral.
       try {
         window.sessionStorage.removeItem("26fit-central-active-section-v1");
+        window.sessionStorage.removeItem("cc-reminder-notification-onboarding-v1");
       } catch {}
       // A URL antiga (ex.: ?page=manage-units) não deve continuar após o logout.
       try {
