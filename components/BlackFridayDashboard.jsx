@@ -105,7 +105,7 @@ function makeScript(endpoint,token){
  ].join("\n");
 }
 const BLACK26_FORM_UNITS_SCRIPT = String.raw`/**
- * Black26 - preenche a lista suspensa "Unidade 26fit" automaticamente.
+ * Black26 - preenche a lista suspensa com academias 26fit e Eleve.
  * Adicione estas funções ao mesmo Código.gs usado para integrar os leads.
  * NÃO substitua BLACK26_API, BLACK26_CHAVE nem as outras funções existentes.
  */
@@ -138,7 +138,7 @@ function black26fitAtualizarUnidades() {
     .toLowerCase().replace(/\s+/g, ' ').trim();
 
   const perguntas = formulario.getItems().filter(item =>
-    limpar(item.getTitle()).includes('em qual unidade 26fit')
+    /em qual unidade (26fit|voce|da rede)/.test(limpar(item.getTitle()))
   );
   if (perguntas.length !== 1) {
     throw new Error('Não foi encontrada exatamente uma pergunta sobre unidade 26fit.');
@@ -339,8 +339,8 @@ export default function BlackFridayDashboard({isDeveloper=false}){
    </div>}
    {(data.sources||[]).length>0&&<div className="cc-black-sources">{data.sources.map(src=><div className="cc-black-source" key={src.id}><div><strong>{src.label}</strong><small>{src.active?"Ativa":"Revogada"} · {src.last_sync_at?"Último envio "+new Date(src.last_sync_at).toLocaleString("pt-BR"):"Sem envios ainda"}{src.last_error?" · Erro: "+src.last_error:""}</small></div>{src.active&&<button type="button" className="btn secondary" disabled={busy} onClick={()=>{if(window.confirm("Revogar esta conexão Google Sheets?"))void sourceAction("revoke_webhook",src.id);}}><Trash2 size={14}/> Revogar</button>}</div>)}</div>}
    <div className="cc-black-units-integration">
-    <strong>Lista de unidades no Google Forms</strong>
-    <p>A Central tem a relação atualizada de unidades 26fit. No editor do Google Forms, altere somente a pergunta <b>“Em qual unidade 26fit você está treinando?”</b> de <b>Resposta curta</b> para <b>Lista suspensa</b>. Preserve a mesma pergunta, para manter o vínculo das respostas anteriores.</p>
+    <strong>Lista de academias 26fit e Eleve no Google Forms</strong>
+    <p>A Central fornece automaticamente as unidades 26fit (incluindo franquias) e Eleve cadastradas no sistema. No editor do Google Forms, altere somente a pergunta <b>“Em qual unidade 26fit você está treinando?”</b> de <b>Resposta curta</b> para <b>Lista suspensa</b>. Preserve a mesma pergunta, para manter o vínculo das respostas anteriores.</p>
     <p>Depois, no Apps Script <b>já instalado na planilha</b>, acrescente o trecho abaixo ao final de Código.gs, salve e execute <code>black26fitAtivarListaDeUnidades</code>. O código preencherá todas as opções e instalará uma atualização diária.</p>
     <button type="button" className="btn secondary" onClick={()=>setShowUnitsCode(x=>!x)}><FileSpreadsheet size={15}/>{showUnitsCode?"Ocultar código":"Ver código das unidades"}</button>
     {showUnitsCode&&<div className="cc-black-script">
