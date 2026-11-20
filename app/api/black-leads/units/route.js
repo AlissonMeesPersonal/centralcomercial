@@ -24,15 +24,25 @@ export async function GET(request){
   if(!valid.length)return reply({error:"Integração revogada ou inválida."},403);
 
   const rows=await sql.query(
-   "SELECT DISTINCT trim(payload->>'name') AS name, id, payload->>'state' AS state FROM (SELECT id,payload FROM cc_unit_seed UNION ALL SELECT id,payload FROM cc_unit_records) units WHERE payload->>'type' IN ('Unidade','Franquia','Eleve','Matriz') AND length(trim(payload->>'name'))>5 ORDER BY name LIMIT 250"
+   "SELECT DISTINCT trim(payload->>'name') AS name, id, payload->>'state' AS state, payload->>'type' AS type, payload->>'websiteStatus' AS website_status FROM (SELECT id,payload FROM cc_unit_seed UNION ALL SELECT id,payload FROM cc_unit_records) units WHERE payload->>'type' IN ('Unidade','Franquia','Eleve','Matriz') AND length(trim(payload->>'name'))>5 ORDER BY name LIMIT 250"
   );
   const seen=new Set();
   const units=rows.filter(x=>{
    const key=x.name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
    if(seen.has(key))return false;seen.add(key);return true;
-  }).map(x=>({id:x.id,name:x.name,state:x.state}));
+  }).map(x=>({id:x.id,name:x.name,state:x.state,type:x.type,websiteStatus:x.website_status||null}));
   units.sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
-  return reply({units,count:units.length,source:"Central Comercial 26fit, Eleve e Matriz"});
+  return reply({
+   units,count:units.length,
+   counts:{
+    official26fit:units.filter(x=>x.type==="Unidade"||x.type==="Franquia").length,
+    eleve:units.filter(x=>x.type==="Eleve").length,
+    matriz:units.filter(x=>x.type==="Matriz").length,
+    emBreve:units.filter(x=>x.websiteStatus==="Em breve").length,
+    inauguracao:units.filter(x=>x.websiteStatus==="Inauguração").length
+   },
+   source:"26fit.com.br/unidades + unidades Eleve e Matriz da Central"
+  });
  }catch(e){
   console.error("black units feed failed",e?.code||"unknown");
   return reply({error:"Não foi possível consultar as unidades."},503);
