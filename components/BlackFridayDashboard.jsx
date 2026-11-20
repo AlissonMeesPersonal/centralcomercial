@@ -104,7 +104,7 @@ function makeScript(endpoint,token){
   "}"
  ].join("\n");
 }
-export default function BlackFridayDashboard(){
+export default function BlackFridayDashboard({isDeveloper=false}){
  const [data,setData]=useState({summary:{},byUnit:[],byDay:[],leads:[],history:[],sources:[]});
  const [filters,setFilters]=useState({unit:"",status:"",q:""});
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -265,7 +265,7 @@ export default function BlackFridayDashboard(){
      </tr>)}</tbody></table></div>}
    {records.length>pageSize&&<div className="cc-black-pagination"><span>Página {page+1} de {pages}{records.length>=data.limit?" · Mais resultados podem existir; filtre por unidade":""}</span><div><button className="btn secondary" disabled={page===0} onClick={()=>setPage(x=>Math.max(0,x-1))}>Anterior</button><button className="btn secondary" disabled={page+1>=pages} onClick={()=>setPage(x=>x+1)}>Próxima</button></div></div>}
   </section>
-  <section className="panel cc-black-integration">
+  {isDeveloper&&<section className="panel cc-black-integration">
    <div className="section-title"><div><h3><Link2 size={17}/> Integrar respostas do Google Forms automaticamente</h3><p>Conexão segura com o Google Sheets, sem publicar contatos na internet.</p></div></div>
    <p className="cc-black-source-note"><ShieldCheck size={15}/><span>Planilha oficial: <a href="https://docs.google.com/spreadsheets/d/1itsdYErCGmCZ0ETjaOc0tGZoMu0H0_ZH_GiD73Pf89U/edit" target="_blank" rel="noopener noreferrer">26fit | Catraca Livre Semana Black26 (respostas)</a>. Aba: <strong>Respostas ao formulário 1</strong>. A primeira importação já foi realizada; ative o Apps Script para receber novos cadastros automaticamente.</span></p>
    <div className="cc-black-source-actions">
@@ -280,7 +280,7 @@ export default function BlackFridayDashboard(){
    </div>}
    {(data.sources||[]).length>0&&<div className="cc-black-sources">{data.sources.map(src=><div className="cc-black-source" key={src.id}><div><strong>{src.label}</strong><small>{src.active?"Ativa":"Revogada"} · {src.last_sync_at?"Último envio "+new Date(src.last_sync_at).toLocaleString("pt-BR"):"Sem envios ainda"}{src.last_error?" · Erro: "+src.last_error:""}</small></div>{src.active&&<button type="button" className="btn secondary" disabled={busy} onClick={()=>{if(window.confirm("Revogar esta conexão Google Sheets?"))void sourceAction("revoke_webhook",src.id);}}><Trash2 size={14}/> Revogar</button>}</div>)}</div>}
    <p className="cc-black-note">A integração identifica automaticamente colunas com "Nome", "WhatsApp/Telefone" e "Unidade". Caso os títulos do seu formulário sejam diferentes, teremos que ajustar o mapeamento com a planilha original.</p>
-  </section>
+  </section>}
   {!!(data.history||[]).length&&<section className="panel cc-black-history"><div className="section-title"><h3>Histórico de importações</h3></div>{data.history.map((h,i)=><p key={i}>{new Date(h.created_at).toLocaleString("pt-BR")} · {h.filename} · {fmt(h.imported_rows)} linhas · {h.imported_by}</p>)}</section>}
   {error&&<p className="validation" role="alert"><AlertTriangle size={16}/>{error}</p>}
   {notice&&<p className="notice" role="status">{notice}</p>}
