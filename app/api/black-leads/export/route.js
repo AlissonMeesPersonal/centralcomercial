@@ -13,7 +13,7 @@ export async function GET(request){
  if(!unit||unit.length>180)return Response.json({error:"Selecione uma unidade para exportar."},{status:422});
  const sql=database();
  const rows=await sql.query(
-  "SELECT lead_name,phone,email,unit_label,status,notes,response_at,contacted_at,converted_at FROM cc_black_leads WHERE campaign=$1 AND unit_label=$2 ORDER BY response_at ASC NULLS LAST, imported_at ASC LIMIT 30000",
+  "SELECT lead_name,phone,email,unit_label,status,notes,response_at,contacted_at,converted_at FROM cc_black_leads WHERE campaign=$1 AND import_quarantined=false AND unit_label=$2 ORDER BY response_at ASC NULLS LAST, imported_at ASC LIMIT 30000",
   [CAMPAIGN,unit]
  );
  if(!rows.length)return Response.json({error:"Esta unidade ainda não possui leads."},{status:404});
