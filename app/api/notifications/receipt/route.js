@@ -9,7 +9,7 @@ const cache = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
 };
-const validToken = value => typeof value === "string" && /^[0-9a-f]{48}$/.test(value);
+const validToken = (value) => typeof value === "string" && /^[0-9a-f]{48}$/.test(value);
 const allowedStages = {
   received: "received_at",
   displayed: "displayed_at",
@@ -28,7 +28,9 @@ export async function POST(request) {
     return Response.json({ error: "Origem não permitida." }, { status: 403, headers: cache });
 
   let body;
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return Response.json({ error: "Dados inválidos." }, { status: 400, headers: cache });
   }
   if (!validToken(body?.token) || !Object.hasOwn(allowedStages, body?.stage))
@@ -41,13 +43,17 @@ export async function POST(request) {
       `UPDATE cc_push_deliveries
        SET ${column} = COALESCE(${column}, now())
        WHERE receipt_token_hash = $1`,
-      [hash]
+      [hash],
     );
     return new Response(null, { status: 204, headers: cache });
   } catch {
-    return Response.json({ error: "Não foi possível registrar a confirmação." }, {
-      status: 503, headers: cache
-    });
+    return Response.json(
+      { error: "Não foi possível registrar a confirmação." },
+      {
+        status: 503,
+        headers: cache,
+      },
+    );
   }
 }
 
@@ -67,11 +73,17 @@ export async function GET() {
         WHERE lower(s.owner_email) = lower($1)
         ORDER BY d.sent_at DESC
         LIMIT 12`,
-      [access.email]
+      [access.email],
     );
-    return Response.json({ deliveries: rows }, { headers: {
-      ...cache, "Vary": "Cookie"
-    }});
+    return Response.json(
+      { deliveries: rows },
+      {
+        headers: {
+          ...cache,
+          Vary: "Cookie",
+        },
+      },
+    );
   } catch {
     return Response.json({ error: "Diagnóstico indisponível." }, { status: 503, headers: cache });
   }

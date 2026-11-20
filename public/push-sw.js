@@ -34,15 +34,20 @@ self.addEventListener("push", (event) => {
       body: JSON.stringify({ token: receipt, stage }),
     }).catch(() => {});
   };
-  const shown = self.registration.showNotification(title, {
-    body,
-    tag,
-    renotify: false,
-    badge: "/logo_v2.png",
-    icon: "/logo_v2.png",
-    data: { url: safeUrl, receipt },
-    requireInteraction: false,
-  }).then(() => acknowledge("displayed"), () => acknowledge("failed"));
+  const shown = self.registration
+    .showNotification(title, {
+      body,
+      tag,
+      renotify: false,
+      badge: "/logo_v2.png",
+      icon: "/logo_v2.png",
+      data: { url: safeUrl, receipt },
+      requireInteraction: false,
+    })
+    .then(
+      () => acknowledge("displayed"),
+      () => acknowledge("failed"),
+    );
   event.waitUntil(Promise.allSettled([acknowledge("received"), shown]));
 });
 self.addEventListener("notificationclick", (event) => {
@@ -58,14 +63,18 @@ self.addEventListener("notificationclick", (event) => {
         body: JSON.stringify({ token: receipt, stage: "clicked" }),
       }).catch(() => {})
     : Promise.resolve();
-  event.waitUntil(Promise.allSettled([recorded, 
-    (async () => {
-      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      const found = windows.find((client) => new URL(client.url).origin === self.location.origin);
-      if (found) {
-        if ("navigate" in found) await found.navigate(target);
-        return found.focus();
-      }
-      return self.clients.openWindow(target);
-    })()])); 
+  event.waitUntil(
+    Promise.allSettled([
+      recorded,
+      (async () => {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        const found = windows.find((client) => new URL(client.url).origin === self.location.origin);
+        if (found) {
+          if ("navigate" in found) await found.navigate(target);
+          return found.focus();
+        }
+        return self.clients.openWindow(target);
+      })(),
+    ]),
+  );
 });

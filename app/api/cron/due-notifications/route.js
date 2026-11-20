@@ -68,7 +68,10 @@ export async function GET(request) {
             body: event.title.slice(0, 130),
             tag:
               "cc-due-" + event.event_key.slice(0, 90) + "-" + new Date(event.starts_at).getTime(),
-            data: { url: "/?section=calendar&reminder=" + encodeURIComponent(event.event_key), receipt },
+            data: {
+              url: "/?section=calendar&reminder=" + encodeURIComponent(event.event_key),
+              receipt,
+            },
           };
           const result = await sendWebPush(sub, message);
           if (result.ok) {
