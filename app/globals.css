@@ -1457,3 +1457,14 @@
  .cc-black-daily-total{font-size:14px!important;padding:4px 9px}
  .cc-black-daily-chart{gap:15px}
 }
+
+/* Churn na Visão Geral: alturas seguem o progresso controlado por
+   requestAnimationFrame, sem uma transição CSS competindo com o contador. */
+.cc-overview-bar-track>span{transition:none!important;will-change:height}
+.cc-overview-rate-number,
+.cc-overview-movements-grid strong,
+.cc-overview-bar-number,
+.cc-overview-attention-item b{font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){
+ .cc-overview-bar-track>span{transition:none!important}
+}
