@@ -1,0 +1,25 @@
+# Dependências, artefatos e conteúdo gerado
+node_modules/
+.next/
+.vercel/
+coverage/
+dist/
+build/
+*.min.js
+*.map
+*.log
+
+# Arquivos binários e mídia (não são código-fonte editável)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.pdf
+*.mp4
+*.woff
+*.woff2
+
+# Evitar alterações desnecessárias em arte vetorial
+public/**/*.svg
