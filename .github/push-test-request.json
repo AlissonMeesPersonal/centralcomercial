@@ -1,5 +1,5 @@
 {
-  "mode": "idle",
+  "mode": "send",
   "owner_hash": "e6ee7bdece99eb2da1393572c01057ec661cb0cabaaf8d70a155945622cd6bb2",
-  "note": "Atualizar mode para send em um commit solicitado para testar push com a Central fechada"
+  "note": "Disparo remoto autorizado pelo usuário com Central fechada. Uso único por commit."
 }
