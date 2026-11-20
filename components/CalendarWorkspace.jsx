@@ -195,8 +195,9 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
       <button onClick={()=>navigate(1)} aria-label="Próximo mês"><ChevronRight size={17}/></button>
      </div>
     </div>
-    <div className="cc-agenda-weekdays">{["SEG","TER","QUA","QUI","SEX","SÁB","DOM"].map(d=><span key={d}>{d}</span>)}</div>
-    <div className="cc-agenda-grid">
+    <div className="cc-agenda-month-scroll" role="region" aria-label="Calendário do mês, deslize horizontalmente em telas menores" tabIndex={0}>
+     <div className="cc-agenda-weekdays">{["SEG","TER","QUA","QUI","SEX","SÁB","DOM"].map(d=><span key={d}>{d}</span>)}</div>
+     <div className="cc-agenda-grid">
       {cells.map((d,i)=>{
        const date=d?dayKey(year,month+1,d):"";
        const entries=byDay.get(date)||[];
@@ -215,6 +216,7 @@ export default function CalendarWorkspace({tasks=[],units=[],year,month,setYear,
          </div></>}
        </div>;
       })}
+     </div>
     </div>
     <p className="cc-agenda-hint">Confira horários e títulos nos cartões. Clique no número do dia, na contagem ou em “+ outros” para ver todos os compromissos e agendar.</p>
    </section>
