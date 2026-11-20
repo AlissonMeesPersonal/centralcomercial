@@ -52,7 +52,7 @@ jobs:
         run: git diff --check
 
       - name: Instalar dependências para validar compilação
-        run: npm install --no-audit --no-fund --ignore-scripts
+        run: npm install --no-save --package-lock=false --no-audit --no-fund --ignore-scripts
 
       - name: Verificar build da Central Comercial
         # Valores exclusivamente locais para a compilação. Não têm acesso a
