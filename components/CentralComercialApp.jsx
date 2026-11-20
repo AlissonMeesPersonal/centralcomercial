@@ -116,6 +116,23 @@ export default function Home({accessRole}) {
    if(signingOut)return;
    setSigningOut(true);
    try{
+    // Remove a inscrição Web Push deste navegador ANTES de invalidar a
+    // sessão, evitando que o próximo usuário receba reuniões de outra conta.
+    try{
+     if("serviceWorker" in navigator){
+      const registration=await navigator.serviceWorker.getRegistration("/");
+      const subscription=await registration?.pushManager?.getSubscription();
+      if(subscription){
+       await fetch("/api/notifications/push",{
+        method:"DELETE",credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({endpoint:subscription.endpoint}),
+        signal:AbortSignal.timeout(2500)
+       }).catch(()=>{});
+       await subscription.unsubscribe().catch(()=>{});
+      }
+     }
+    }catch{/* Erros da permissão push não impedem o logout seguro da sessão. */}
     const result=await authClient.signOut();
     if(result?.error)throw new Error(result.error.message||"Não foi possível encerrar a sessão.");
     // Logout limpa a aba salva; novo login sempre começa em Visão geral.
