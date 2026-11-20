@@ -1413,3 +1413,27 @@
  .cc-agenda-calendar .cc-agenda-day{height:170px;min-height:170px}
  .cc-agenda-calendar .cc-agenda-hint{font-size:11px}
 }
+
+/* Black26: contagem diária legível acima de cada barra (desktop e mobile) */
+.cc-black-daily-chart{display:flex;flex-direction:column;gap:17px;margin:4px 0 14px}
+.cc-black-daily-row{min-width:0;display:flex;flex-direction:column;gap:7px}
+.cc-black-daily-labels{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.cc-black-daily-date{color:#455462;font-size:12px;font-weight:740;font-variant-numeric:tabular-nums}
+.cc-black-daily-total{
+ color:#20282e!important;background:#fff5e9;border:1px solid #f4d5ab;
+ padding:5px 10px;border-radius:7px;font-size:15px!important;font-weight:800!important;
+ letter-spacing:0;font-variant-numeric:tabular-nums;line-height:1.3;
+ white-space:nowrap;display:inline-flex;align-items:baseline;gap:4px;
+}
+.cc-black-daily-total span{font-weight:650;color:#8c592a;font-size:11px}
+.cc-black-daily-track{width:100%;height:13px;border-radius:10px;background:#edf0f4;overflow:hidden}
+.cc-black-daily-track>span{
+ display:block;height:100%;border-radius:10px;
+ background:linear-gradient(90deg,#f6a743,#e9872d);
+ min-width:3px;transition:width .2s ease
+}
+.cc-black-graph .cc-black-note{margin-top:15px}
+@media(max-width:720px){
+ .cc-black-daily-total{font-size:14px!important;padding:4px 9px}
+ .cc-black-daily-chart{gap:15px}
+}
