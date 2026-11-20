@@ -9224,3 +9224,63 @@ td small {
     transform: none;
   }
 }
+
+/* Ações de gestão visíveis em Kanban, Lista e Por unidade. */
+.cc-task-quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #eff1f3;
+}
+.cc-task-quick-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #e3e7eb;
+  border-radius: 8px;
+  background: #f8fafb;
+  color: #53616d;
+  cursor: pointer;
+  padding: 7px 9px;
+  min-height: 32px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+.cc-task-quick-action:hover {
+  background: #f0f4f6;
+  border-color: #b9c5cd;
+}
+.cc-task-quick-action.danger {
+  border-color: #f3dcda;
+  background: #fff8f7;
+  color: #b3524a;
+}
+.cc-task-quick-action.danger:hover {
+  background: #ffedeb;
+  border-color: #edb1a9;
+}
+.cc-task-quick-action:focus-visible {
+  outline: 2px solid #d98936;
+  outline-offset: 2px;
+}
+.cc-task-table-actions {
+  white-space: nowrap;
+  cursor: default;
+}
+.cc-task-table-actions .cc-task-quick-action {
+  margin-right: 6px;
+}
+.cc-task-table-actions .cc-task-quick-action:last-child {
+  margin-right: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-task-quick-action {
+    transition: none;
+  }
+}

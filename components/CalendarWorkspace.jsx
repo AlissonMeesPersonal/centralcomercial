@@ -870,8 +870,10 @@ export default function CalendarWorkspace({
                 </p>
               )}
               <p className="cc-op-note cc-ms-event-note">
-                Compromisso importado do Microsoft Teams, somente leitura. Faça alterações na agenda
-                original; elas serão sincronizadas com a Central.
+                Compromisso importado do Microsoft Teams, somente leitura. Para cancelar ou alterar,
+                utilize o calendário original do Outlook/Teams: a próxima sincronização importará as
+                alterações. Para arquivar ou excluir <strong>demandas comerciais</strong>, use a aba
+                Demandas, onde a administração possui os controles de gestão.
               </p>
             </div>
             <div className="cc-agenda-modal-footer">

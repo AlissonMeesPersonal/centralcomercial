@@ -308,7 +308,16 @@ function Notice({ children }) {
     </div>
   );
 }
-function TaskCard({ item, units, onOpen, compact = false, drag = true }) {
+function TaskCard({
+  item,
+  units,
+  onOpen,
+  onArchive,
+  onDelete,
+  canManage = false,
+  compact = false,
+  drag = true,
+}) {
   const done = item.checklist.filter((c) => c.done).length,
     total = item.checklist.length;
   const overdue = item.due < day() && item.stage !== "Concluído";
@@ -356,10 +365,35 @@ function TaskCard({ item, units, onOpen, compact = false, drag = true }) {
           {dateFmt(item.due)}
         </span>
       </div>
+      {canManage && (
+        <div className="cc-task-quick-actions" aria-label={"Ações da demanda " + item.title}>
+          <button
+            type="button"
+            draggable={false}
+            className="cc-task-quick-action"
+            onClick={() => onArchive(item)}
+            title={item.archived ? "Restaurar demanda" : "Arquivar demanda"}
+          >
+            <Archive size={14} />
+            {item.archived ? "Restaurar" : "Arquivar"}
+          </button>
+          <button
+            type="button"
+            draggable={false}
+            className="cc-task-quick-action danger"
+            onClick={() => onDelete(item)}
+            title="Excluir demanda preservando o histórico"
+          >
+            <Trash2 size={14} />
+            Excluir
+          </button>
+        </div>
+      )}
     </article>
   );
 }
 export default function Home({ accessRole }) {
+  const canManageTasks = ["developer", "admin", "gestor"].includes(accessRole);
   const [ready, setReady] = useState(false),
     [units, setUnits] = useState([]),
     [campaigns, setCampaigns] = useState([]),
@@ -1077,44 +1111,49 @@ export default function Home({ accessRole }) {
       if (err.status === 409) void refreshShared(false);
     }
   }
-  async function deleteTask() {
+  async function deleteTask(target) {
+    if (!target || !canManageTasks || !tasksRef.current.some((t) => t.id === target.id))
+      return;
+
     if (
-      !editing ||
-      !tasks.some((t) => t.id === editing.id) ||
-      !["developer", "admin", "gestor"].includes(accessRole)
+      !window.confirm(
+        "Excluir esta demanda das listas ativas? Ela ficará preservada no Histórico, com usuário, data, comentários e movimentações, somente para consulta.",
+      )
     )
       return;
-    const confirmed = window.confirm(
-      "Excluir esta demanda das listas ativas? Ela ficará preservada no Histórico, com usuário, data, comentários e movimentações, somente para consulta.",
-    );
-    if (!confirmed) return;
+
     try {
       const result = await commercialRequest({
         action: "delete_task",
-        id: editing.id,
-        expectedRevision: editing.syncRevision || 0,
+        id: target.id,
+        expectedRevision: target.syncRevision || 0,
       });
-      setTasks((list) => list.filter((t) => t.id !== editing.id));
-      setDeletedTasks((list) => [result.item, ...list.filter((t) => t.id !== editing.id)]);
-      tasksRef.current = tasksRef.current.filter((t) => t.id !== editing.id);
-      serverRevisionsRef.current.delete(editing.id);
-      setDrawer(null);
-      setEditing(null);
+      setTasks((list) => list.filter((t) => t.id !== target.id));
+      setDeletedTasks((list) => [result.item, ...list.filter((t) => t.id !== target.id)]);
+      tasksRef.current = tasksRef.current.filter((t) => t.id !== target.id);
+      serverRevisionsRef.current.delete(target.id);
+      if (editing?.id === target.id) {
+        setDrawer(null);
+        setEditing(null);
+      }
       setError("");
       window.dispatchEvent(new Event("26fit:calendar-updated"));
       notify("Demanda excluída das listas. Registro preservado no Histórico.");
     } catch (err) {
       setError(err.message || "Não foi possível excluir a demanda.");
+      notify(err.message || "Não foi possível excluir a demanda.");
       if (err.status === 409) void refreshShared(false);
     }
   }
-  async function toggleTaskArchived() {
-    if (!editing || !tasks.some((t) => t.id === editing.id)) return;
-    if (!["developer", "admin", "gestor"].includes(accessRole)) {
+
+  async function toggleTaskArchived(target) {
+    if (!target || !tasksRef.current.some((t) => t.id === target.id)) return;
+    if (!canManageTasks) {
       setError("Somente a administração pode arquivar ou restaurar demandas.");
       return;
     }
-    const next = !editing.archived;
+
+    const next = !target.archived;
     if (
       next &&
       !window.confirm(
@@ -1122,17 +1161,18 @@ export default function Home({ accessRole }) {
       )
     )
       return;
+
     try {
       const result = await commercialRequest({
         action: "set_task_archived",
-        id: editing.id,
+        id: target.id,
         archived: next,
-        expectedRevision: editing.syncRevision || 0,
+        expectedRevision: target.syncRevision || 0,
       });
-      serverRevisionsRef.current.set(editing.id, result.item.syncRevision);
-      setTasks((list) => list.map((t) => (t.id === editing.id ? result.item : t)));
-      setEditing(result.item);
-      setDrawer(null);
+      serverRevisionsRef.current.set(target.id, result.item.syncRevision);
+      setTasks((list) => list.map((t) => (t.id === target.id ? result.item : t)));
+      setEditing((previous) => (previous?.id === target.id ? result.item : previous));
+      if (editing?.id === target.id) setDrawer(null);
       setError("");
       window.dispatchEvent(new Event("26fit:calendar-updated"));
       notify(
@@ -1143,16 +1183,18 @@ export default function Home({ accessRole }) {
       void recordActivity({
         module: "demanda",
         action: next ? "archived" : "restored",
-        entityId: editing.id,
-        title: editing.title || "Demanda",
+        entityId: target.id,
+        title: target.title || "Demanda",
         details: next ? "Demanda arquivada" : "Demanda restaurada",
-        unitId: editing.unitId,
+        unitId: target.unitId,
       }).catch(() => {});
     } catch (err) {
       setError(err.message || "Não foi possível atualizar o arquivamento.");
+      notify(err.message || "Não foi possível atualizar o arquivamento.");
       if (err.status === 409) void refreshShared(false);
     }
   }
+
   function newCampaign() {
     if (!["developer", "admin", "gestor"].includes(accessRole)) {
       notify("Campanhas centrais são criadas pela gestão.");
@@ -1965,6 +2007,9 @@ export default function Home({ accessRole }) {
                               item={t}
                               units={units}
                               onOpen={openTask}
+                              onArchive={toggleTaskArchived}
+                              onDelete={deleteTask}
+                              canManage={canManageTasks}
                               drag={accessRole !== "colaborador"}
                             />
                           ))}
@@ -1988,6 +2033,7 @@ export default function Home({ accessRole }) {
                         <th>Prioridade</th>
                         <th>Prazo</th>
                         <th>Meta</th>
+                        {canManageTasks && <th>Ações</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -2019,6 +2065,30 @@ export default function Home({ accessRole }) {
                             {dateFmt(t.due)}
                           </td>
                           <td>{percent(ratio(t.actual, t.goal))}</td>
+                          {canManageTasks && (
+                            <td className="cc-task-table-actions" onClick={(event) => event.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="cc-task-quick-action"
+                                onClick={() => toggleTaskArchived(t)}
+                                title={t.archived ? "Restaurar demanda" : "Arquivar demanda"}
+                                aria-label={(t.archived ? "Restaurar " : "Arquivar ") + t.title}
+                              >
+                                <Archive size={14} />
+                                {t.archived ? "Restaurar" : "Arquivar"}
+                              </button>
+                              <button
+                                type="button"
+                                className="cc-task-quick-action danger"
+                                onClick={() => deleteTask(t)}
+                                title="Excluir demanda preservando o histórico"
+                                aria-label={"Excluir " + t.title}
+                              >
+                                <Trash2 size={14} />
+                                Excluir
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -2061,6 +2131,9 @@ export default function Home({ accessRole }) {
                             item={t}
                             units={units}
                             onOpen={openTask}
+                            onArchive={toggleTaskArchived}
+                            onDelete={deleteTask}
+                            canManage={canManageTasks}
                           />
                         ))}
                       {!filtered.some((t) => t.unitId === u.id) && (
@@ -3363,15 +3436,13 @@ export default function Home({ accessRole }) {
               </div>
             </div>
             <div className="drawer-footer">
-              {tasks.some((t) => t.id === editing.id) &&
-                ["developer", "admin", "gestor"].includes(accessRole) && (
-                  <Button kind="danger" onClick={deleteTask}>
+              {tasks.some((t) => t.id === editing.id) && canManageTasks && (
+                  <Button kind="danger" onClick={() => deleteTask(editing)}>
                     <Trash2 size={16} /> Excluir demanda
                   </Button>
                 )}
-              {tasks.some((t) => t.id === editing.id) &&
-                ["developer", "admin", "gestor"].includes(accessRole) && (
-                  <Button kind="secondary" onClick={toggleTaskArchived}>
+              {tasks.some((t) => t.id === editing.id) && canManageTasks && (
+                  <Button kind="secondary" onClick={() => toggleTaskArchived(editing)}>
                     <Archive size={16} /> {editing.archived ? "Restaurar" : "Arquivar"}
                   </Button>
                 )}
