@@ -328,7 +328,9 @@ export default function ReminderCenter({ onOpenReminder }) {
             aria-describedby="cc-notification-onboarding-description"
           >
             <div className="cc-notification-onboarding-head">
-              <span className="cc-notification-onboarding-brand">26FIT <span>• CENTRAL COMERCIAL</span></span>
+              <span className="cc-notification-onboarding-brand">
+                26FIT <span>• CENTRAL COMERCIAL</span>
+              </span>
               <button
                 type="button"
                 onClick={dismissOnboarding}
@@ -347,17 +349,30 @@ export default function ReminderCenter({ onOpenReminder }) {
             <span className="cc-notification-onboarding-eyebrow">NÃO PERCA SEUS COMPROMISSOS</span>
             <h2 id="cc-notification-onboarding-title">Ative os avisos da Central</h2>
             <p id="cc-notification-onboarding-description">
-              Receba um lembrete quando uma reunião do Teams ou um evento estiver
-              começando, mesmo que você esteja em outra aba do navegador.
+              Receba um lembrete quando uma reunião do Teams ou um evento estiver começando, mesmo
+              que você esteja em outra aba do navegador.
             </p>
 
             <div className="cc-notification-onboarding-benefits">
-              <div><Clock3 size={18} /><span>Alertas quando chegar o horário da reunião</span></div>
-              <div><CalendarDays size={18} /><span>Acesso rápido ao compromisso no calendário</span></div>
-              <div><ShieldCheck size={18} /><span>Você controla a permissão e pode desativá-la</span></div>
+              <div>
+                <Clock3 size={18} />
+                <span>Alertas quando chegar o horário da reunião</span>
+              </div>
+              <div>
+                <CalendarDays size={18} />
+                <span>Acesso rápido ao compromisso no calendário</span>
+              </div>
+              <div>
+                <ShieldCheck size={18} />
+                <span>Você controla a permissão e pode desativá-la</span>
+              </div>
             </div>
 
-            {error && <p className="cc-notification-onboarding-error" role="alert">{error}</p>}
+            {error && (
+              <p className="cc-notification-onboarding-error" role="alert">
+                {error}
+              </p>
+            )}
 
             <button
               type="button"
