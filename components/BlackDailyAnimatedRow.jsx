@@ -72,7 +72,7 @@ export default function BlackDailyAnimatedRow({day,amount,maxAmount,index=0}){
   <div className="cc-black-daily-track" aria-hidden="true">
    <span className="cc-black-daily-fill" style={{
     width:visible?width+"%":"0%",
-    transitionDelay:visible&&displayedRef.current===0?stagger+"ms":"0ms"
+    transitionDelay:stagger+"ms"
    }}/>
   </div>
  </div>;
