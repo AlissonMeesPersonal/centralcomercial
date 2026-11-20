@@ -24,7 +24,7 @@ export async function GET(request){
    sql.query("SELECT to_char(response_at AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD') AS day,count(*)::integer AS leads FROM cc_black_leads WHERE campaign=$1 AND import_quarantined=false AND response_at IS NOT NULL GROUP BY 1 ORDER BY day DESC LIMIT 90",[CAMPAIGN]),
    sql.query("SELECT id,lead_name AS name,phone,email,unit_label AS unit,status,notes,response_at,contacted_at,converted_at,imported_at FROM cc_black_leads WHERE campaign=$1 AND import_quarantined=false AND ($2='' OR unit_label=$2) AND ($3='' OR status=$3) AND ($4='' OR lead_name ILIKE '%'||$4||'%' OR phone ILIKE '%'||$4||'%') ORDER BY response_at DESC NULLS LAST,imported_at DESC LIMIT 2000",[CAMPAIGN,unit,status,q]),
    sql.query("SELECT filename,total_rows,imported_rows,imported_by,created_at FROM cc_black_import_history WHERE campaign=$1 ORDER BY created_at DESC LIMIT 12",[CAMPAIGN]),
-   sql.query("SELECT id,label,active,created_at,last_sync_at,last_error FROM cc_black_sync_sources ORDER BY created_at DESC LIMIT 20")
+   access.role==="developer" ? sql.query("SELECT id,label,active,created_at,last_sync_at,last_error FROM cc_black_sync_sources ORDER BY created_at DESC LIMIT 20") : Promise.resolve([])
   ]);
   return respond({summary:summary[0]||{},byUnit,byDay,leads,history,sources,limit:2000});
  }catch(e){console.error("black leads GET failed",e?.code||"unknown");return fail("Falha ao carregar a campanha Black Friday.",503);}
@@ -53,6 +53,7 @@ export async function POST(request){
    return respond({ok:true,lead:rows[0]});
   }
   if(body.action==="create_webhook"){
+   if(access.role!=="developer")return fail("Somente o desenvolvedor pode gerenciar integrações.",403);
    const label=String(body.label||"Formulário Google Black Friday").trim().slice(0,120);
    if(label.length<3)return fail("Informe a identificação da planilha.",422);
    const token=randomBytes(32).toString("base64url");
@@ -61,6 +62,7 @@ export async function POST(request){
    return respond({id:created[0].id,token,url:new URL("/api/black-leads/webhook",request.url).toString()},201);
   }
   if(body.action==="revoke_webhook"){
+   if(access.role!=="developer")return fail("Somente o desenvolvedor pode gerenciar integrações.",403);
    if(!/^[a-f0-9-]{36}$/i.test(String(body.id||"")))return fail("Identificador inválido.",422);
    await sql.query("UPDATE cc_black_sync_sources SET active=false WHERE id=$1::uuid",[body.id]);
    return respond({ok:true});
