@@ -28,7 +28,8 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
   const [visible, setVisible] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [filter, setFilter] = useState("all");
-  const key = "cc-demand-reminder-dismissed-this-tab-v2:" + String(userEmail || "user").toLowerCase();
+  const key =
+    "cc-demand-reminder-dismissed-this-tab-v2:" + String(userEmail || "user").toLowerCase();
   const demands = useMemo(
     () =>
       (tasks || [])
