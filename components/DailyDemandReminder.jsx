@@ -58,10 +58,19 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
       count + entry.pending.filter((item) => item.days !== null && item.days < 0).length,
     0,
   );
-  const shown = demands.filter(
-    (entry) =>
-      filter !== "overdue" || entry.pending.some((item) => item.days !== null && item.days < 0),
-  );
+  const matchesFilter = (item) => {
+    if (filter === "overdue") return item.days !== null && item.days < 0;
+    if (filter === "today") return item.days === 0;
+    if (filter === "week") return item.days !== null && item.days >= 0 && item.days <= 7;
+    return true;
+  };
+  const shown = demands.filter((entry) => entry.pending.some(matchesFilter));
+  const filterLabels = {
+    all: "Nenhum checklist pendente. Tudo em dia!",
+    overdue: "Nenhuma atividade atrasada.",
+    today: "Nenhuma atividade vence hoje.",
+    week: "Nenhuma atividade vence nos próximos 7 dias.",
+  };
 
   useEffect(() => {
     const checkDay = () => setToday(dateInBrazil());
@@ -143,24 +152,29 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
                 <span>Atividades atrasadas</span>
               </div>
             </div>
-            <div className="cc-daily-reminder-filters">
-              <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
-                Todas
-              </button>
-              <button
-                className={filter === "overdue" ? "active" : ""}
-                onClick={() => setFilter("overdue")}
-              >
-                Atrasadas
-              </button>
+            <div className="cc-daily-reminder-filters" aria-label="Filtrar atividades pendentes">
+              {[
+                ["overdue", "Atrasadas"],
+                ["today", "Vencem hoje"],
+                ["week", "Próximos 7 dias"],
+                ["all", "Todas"],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={filter === value ? "active" : ""}
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <div className="cc-daily-reminder-list">
               {!shown.length && (
                 <p className="cc-daily-reminder-empty">
                   <CheckCircle2 size={19} />{" "}
-                  {demands.length
-                    ? "Nenhuma atividade atrasada."
-                    : "Nenhum checklist pendente. Tudo em dia!"}
+                  {demands.length ? filterLabels[filter] : filterLabels.all}
                 </p>
               )}
               {shown.map(({ task, pending, completed, days }) => (
@@ -195,9 +209,7 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
                   </div>
                   <ul>
                     {pending
-                      .filter(
-                        (item) => filter !== "overdue" || (item.days !== null && item.days < 0),
-                      )
+                      .filter(matchesFilter)
                       .map((item) => (
                         <li key={item.id}>
                           <span>{item.title || "Atividade sem título"}</span>
