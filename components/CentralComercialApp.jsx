@@ -1620,7 +1620,12 @@ export default function Home({ accessRole, userEmail }) {
             </span>
           </div>
           <div className="top-actions">
-            <DailyDemandReminder tasks={tasks} ready={ready} userEmail={userEmail} onOpenTask={openTask} />
+            <DailyDemandReminder
+              tasks={tasks}
+              ready={ready}
+              userEmail={userEmail}
+              onOpenTask={openTask}
+            />
             <ReminderCenter onOpenReminder={openReminder} />
             <CalendarAlertsBell
               tasks={tasks}
@@ -3197,7 +3202,14 @@ export default function Home({ accessRole, userEmail }) {
                         type="date"
                         ariaLabel={"Prazo da atividade " + c.title}
                         value={c.due || ""}
-                        onChange={(e) => setEditing((d) => ({ ...d, checklist: d.checklist.map((x) => x.id === c.id ? { ...x, due: e.target.value } : x) }))}
+                        onChange={(e) =>
+                          setEditing((d) => ({
+                            ...d,
+                            checklist: d.checklist.map((x) =>
+                              x.id === c.id ? { ...x, due: e.target.value } : x,
+                            ),
+                          }))
+                        }
                       />
                       {c.required && <Tag>Obrig.</Tag>}
                     </div>
