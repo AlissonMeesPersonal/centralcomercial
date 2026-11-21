@@ -208,18 +208,16 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
                     />
                   </div>
                   <ul>
-                    {pending
-                      .filter(matchesFilter)
-                      .map((item) => (
-                        <li key={item.id}>
-                          <span>{item.title || "Atividade sem título"}</span>
-                          <small className={item.days !== null && item.days < 0 ? "late" : ""}>
-                            <Clock3 size={12} />
-                            {deadlineText(item.days)}
-                            {item.individualDue ? " • prazo da atividade" : ""}
-                          </small>
-                        </li>
-                      ))}
+                    {pending.filter(matchesFilter).map((item) => (
+                      <li key={item.id}>
+                        <span>{item.title || "Atividade sem título"}</span>
+                        <small className={item.days !== null && item.days < 0 ? "late" : ""}>
+                          <Clock3 size={12} />
+                          {deadlineText(item.days)}
+                          {item.individualDue ? " • prazo da atividade" : ""}
+                        </small>
+                      </li>
+                    ))}
                   </ul>
                 </article>
               ))}
