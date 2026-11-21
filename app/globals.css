@@ -9286,3 +9286,39 @@ td small {
     transition: none;
   }
 }
+
+
+/* Checklist diário de demandas */
+.cc-daily-reminder-trigger{display:inline-flex;align-items:center;gap:7px;border:1px solid #e3e8ed;background:#fff;border-radius:10px;padding:9px 11px;font-weight:700;font-size:12px;color:#303a43;cursor:pointer;white-space:nowrap}
+.cc-daily-reminder-trigger b{background:#fcebd9;color:#914d12;border-radius:20px;padding:2px 7px;font-size:11px}
+.cc-daily-reminder-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(14,20,27,.6);display:flex;align-items:center;justify-content:center;padding:20px}
+.cc-daily-reminder-panel{width:min(700px,100%);max-height:min(88vh,900px);background:#fff;color:#23303b;border-radius:20px;box-shadow:0 28px 100px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden}
+.cc-daily-reminder-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:24px 26px 15px;border-bottom:1px solid #edf0f2}
+.cc-daily-reminder-head small{font-size:10px;font-weight:800;letter-spacing:.12em;color:#c17529}
+.cc-daily-reminder-head h2{margin:7px 0;display:flex;align-items:center;gap:9px;font-size:21px;color:#1b2530}
+.cc-daily-reminder-head p{margin:0;font-size:13px;color:#677481}
+.cc-daily-reminder-head>button{background:transparent;border:0;cursor:pointer;padding:5px;color:#65717b}
+.cc-daily-reminder-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:18px 26px}
+.cc-daily-reminder-summary>div{background:#f6f8fa;border-radius:12px;padding:13px;display:flex;flex-direction:column;gap:4px}
+.cc-daily-reminder-summary strong{font-size:24px;line-height:1.15}
+.cc-daily-reminder-summary span{font-size:11px;color:#687580}
+.cc-daily-reminder-filters{display:flex;gap:8px;padding:0 26px 14px}
+.cc-daily-reminder-filters button{border:1px solid #e1e5e9;background:#fff;padding:7px 13px;border-radius:9px;cursor:pointer;color:#485663;font-size:12px}
+.cc-daily-reminder-filters button.active{background:#222b35;color:#fff;border-color:#222b35}
+.cc-daily-reminder-list{padding:0 26px 20px;overflow-y:auto;min-height:0;display:grid;align-content:start;gap:12px}
+.cc-daily-reminder-task{border:1px solid #e5e9ed;border-radius:13px;padding:15px}
+.cc-daily-reminder-task-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cc-daily-reminder-task-heading button{border:0;background:transparent;padding:0;text-align:left;cursor:pointer;font-size:14px;font-weight:800;color:#222b35}
+.cc-daily-reminder-task-heading>span{display:inline-flex;align-items:center;gap:5px;color:#5c6873;font-size:11px}
+.cc-daily-reminder-task>small{display:block;margin:7px 0;font-size:11px;color:#6c7a85}
+.cc-daily-reminder-progress{height:5px;background:#eef1f4;border-radius:9px;overflow:hidden}
+.cc-daily-reminder-progress span{display:block;height:100%;background:#e49a46;border-radius:9px}
+.cc-daily-reminder-task ul{list-style:none;margin:10px 0 0;padding:0}
+.cc-daily-reminder-task li{display:flex;gap:12px;justify-content:space-between;padding:9px 0;border-top:1px solid #f0f2f4;font-size:12px;align-items:center}
+.cc-daily-reminder-task li>small{font-size:10px;color:#687580;display:inline-flex;align-items:center;gap:4px;text-align:right;white-space:nowrap}
+.cc-daily-reminder-task li>small.late{color:#b43c37;font-weight:700}
+.cc-daily-reminder-empty{display:flex;align-items:center;gap:8px;font-size:13px;padding:20px 0;color:#647480}
+.cc-daily-reminder-panel footer{border-top:1px solid #edf0f2;display:flex;align-items:center;justify-content:space-between;padding:14px 26px;gap:12px}
+.cc-daily-reminder-panel footer span{font-size:11px;color:#6a7782}
+.cc-daily-reminder-panel footer button{background:#e9943e;color:#1a2027;border:0;padding:10px 15px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:800;white-space:nowrap}
+@media(max-width:650px){.cc-daily-reminder-trigger span{display:none}.cc-daily-reminder-backdrop{padding:8px}.cc-daily-reminder-panel{max-height:95vh;border-radius:15px}.cc-daily-reminder-head,.cc-daily-reminder-summary,.cc-daily-reminder-list,.cc-daily-reminder-panel footer{padding-left:15px;padding-right:15px}.cc-daily-reminder-filters{padding-left:15px}.cc-daily-reminder-head h2{font-size:18px}.cc-daily-reminder-summary strong{font-size:20px}.cc-daily-reminder-task li{align-items:flex-start;flex-direction:column;gap:3px}.cc-daily-reminder-panel footer span{display:none}.cc-daily-reminder-panel footer button{width:100%}.check-row .activity-input{min-width:100px}.check-row input[type="date"]{max-width:160px}}
