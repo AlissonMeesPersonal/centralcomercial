@@ -25,5 +25,5 @@ export default async function Page() {
         }
       />
     );
-  return <CentralComercialApp accessRole={access.role} />;
+  return <CentralComercialApp accessRole={access.role} userEmail={access.email} />;
 }
