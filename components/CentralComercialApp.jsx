@@ -1626,7 +1626,7 @@ export default function Home({ accessRole, userEmail }) {
               userEmail={userEmail}
               onOpenTask={openTask}
             />
-            <ReminderCenter onOpenReminder={openReminder} />
+            <ReminderCenter onOpenReminder={openReminder} accessRole={accessRole} />
             <CalendarAlertsBell
               tasks={tasks}
               pending={pending}
