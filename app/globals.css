@@ -9388,6 +9388,7 @@ td small {
 }
 .cc-daily-reminder-filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 26px 14px;
 }
