@@ -14,6 +14,7 @@ import DateCalendarInput from "./DateCalendarInput";
 import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
 import ReminderCenter from "./ReminderCenter";
+import DailyDemandReminder from "./DailyDemandReminder";
 import { authClient } from "../lib/auth/client";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -392,7 +393,7 @@ function TaskCard({
     </article>
   );
 }
-export default function Home({ accessRole }) {
+export default function Home({ accessRole, userEmail }) {
   const canManageTasks = ["developer", "admin", "gestor"].includes(accessRole);
   const [ready, setReady] = useState(false),
     [units, setUnits] = useState([]),
@@ -1619,6 +1620,7 @@ export default function Home({ accessRole }) {
             </span>
           </div>
           <div className="top-actions">
+            <DailyDemandReminder tasks={tasks} ready={ready} userEmail={userEmail} onOpenTask={openTask} />
             <ReminderCenter onOpenReminder={openReminder} />
             <CalendarAlertsBell
               tasks={tasks}
@@ -3190,6 +3192,12 @@ export default function Home({ accessRole }) {
                             ),
                           }))
                         }
+                      />
+                      <DateCalendarInput
+                        type="date"
+                        ariaLabel={"Prazo da atividade " + c.title}
+                        value={c.due || ""}
+                        onChange={(e) => setEditing((d) => ({ ...d, checklist: d.checklist.map((x) => x.id === c.id ? { ...x, due: e.target.value } : x) }))}
                       />
                       {c.required && <Tag>Obrig.</Tag>}
                     </div>
