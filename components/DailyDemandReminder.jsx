@@ -28,7 +28,7 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
   const [visible, setVisible] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [filter, setFilter] = useState("all");
-  const key = "cc-daily-demand-reminder-v1:" + String(userEmail || "user").toLowerCase();
+  const key = "cc-demand-reminder-dismissed-this-tab-v2:" + String(userEmail || "user").toLowerCase();
   const demands = useMemo(
     () =>
       (tasks || [])
@@ -77,28 +77,26 @@ export default function DailyDemandReminder({ tasks, ready, userEmail, onOpenTas
     const interval = setInterval(checkDay, 60000);
     return () => clearInterval(interval);
   }, []);
+  // Uma vez por abertura de aba: fechar o painel não silencia o próximo acesso.
+  // sessionStorage é isolado por aba, diferentemente do localStorage diário.
   useEffect(() => {
     if (!ready || initialized) return;
     setInitialized(true);
+    if (!demands.length) return;
     try {
-      if (window.localStorage.getItem(key) !== today && demands.length) setVisible(true);
+      if (window.sessionStorage.getItem(key) !== "dismissed") setVisible(true);
     } catch {
-      if (demands.length) setVisible(true);
+      setVisible(true);
     }
-  }, [ready, initialized, key, today, demands.length]);
-  useEffect(() => {
-    if (!ready || !initialized) return;
-    try {
-      if (demands.length && window.localStorage.getItem(key) !== today) setVisible(true);
-    } catch {
-      // Falha no armazenamento não bloqueia os lembretes.
-    }
-  }, [today, key, ready, initialized, demands.length]);
+  }, [ready, initialized, key, demands.length]);
+
   const dismiss = () => {
     setVisible(false);
     try {
-      window.localStorage.setItem(key, today);
-    } catch {}
+      window.sessionStorage.setItem(key, "dismissed");
+    } catch {
+      // O estado React impede reaparecimento durante a navegação atual.
+    }
   };
 
   return (
