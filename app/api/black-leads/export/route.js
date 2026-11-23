@@ -28,11 +28,17 @@ export async function GET(request) {
   workbook.created = new Date();
   workbook.modified = new Date();
   // Cada coluna recebida do formulário será preservada no Excel da unidade.
-  const originalHeaders = [...new Set(rows.flatMap((lead) =>
-    lead.extra_fields && typeof lead.extra_fields === "object" && !Array.isArray(lead.extra_fields)
-      ? Object.keys(lead.extra_fields)
-      : [],
-  ))].slice(0, 150);
+  const originalHeaders = [
+    ...new Set(
+      rows.flatMap((lead) =>
+        lead.extra_fields &&
+        typeof lead.extra_fields === "object" &&
+        !Array.isArray(lead.extra_fields)
+          ? Object.keys(lead.extra_fields)
+          : [],
+      ),
+    ),
+  ].slice(0, 150);
   const safeCell = (value) => {
     const result = String(value ?? "").slice(0, 2000);
     // Evita execução de fórmulas ao abrir células originadas de respostas externas.
@@ -41,7 +47,7 @@ export async function GET(request) {
   const excelColumn = (n) => {
     let name = "";
     for (let x = n; x > 0; x = Math.floor((x - 1) / 26))
-      name = String.fromCharCode(65 + (x - 1) % 26) + name;
+      name = String.fromCharCode(65 + ((x - 1) % 26)) + name;
     return name;
   };
   const totalColumns = 10 + originalHeaders.length;
@@ -121,7 +127,10 @@ export async function GET(request) {
     row.getCell(10).value = { text: "Conversar", hyperlink: "https://wa.me/" + full };
     row.getCell(10).font = { color: { argb: "FF175CD3" }, underline: true };
   });
-  sheet.autoFilter = { from: { row: 4, column: 1 }, to: { row: rows.length + 4, column: totalColumns } };
+  sheet.autoFilter = {
+    from: { row: 4, column: 1 },
+    to: { row: rows.length + 4, column: totalColumns },
+  };
   sheet.printTitlesRow = "1:4";
   sheet.headerFooter.oddFooter =
     "26fit Central Comercial • Contatos restritos para campanha Black Friday 2026 | Página &P de &N";
