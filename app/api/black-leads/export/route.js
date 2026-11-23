@@ -17,7 +17,7 @@ export async function GET(request) {
     return Response.json({ error: "Selecione uma unidade para exportar." }, { status: 422 });
   const sql = database();
   const rows = await sql.query(
-    "SELECT lead_name,phone,email,unit_label,status,notes,response_at,contacted_at,converted_at FROM cc_black_leads WHERE campaign=$1 AND import_quarantined=false AND unit_label=$2 ORDER BY response_at ASC NULLS LAST, imported_at ASC LIMIT 30000",
+    "SELECT lead_name,phone,email,unit_label,status,notes,response_at,contacted_at,converted_at,extra_fields FROM cc_black_leads WHERE campaign=$1 AND import_quarantined=false AND unit_label=$2 ORDER BY response_at ASC NULLS LAST, imported_at ASC LIMIT 30000",
     [CAMPAIGN, unit],
   );
   if (!rows.length)
@@ -27,6 +27,25 @@ export async function GET(request) {
   workbook.creator = "26fit Central Comercial";
   workbook.created = new Date();
   workbook.modified = new Date();
+  // Cada coluna recebida do formulário será preservada no Excel da unidade.
+  const originalHeaders = [...new Set(rows.flatMap((lead) =>
+    lead.extra_fields && typeof lead.extra_fields === "object" && !Array.isArray(lead.extra_fields)
+      ? Object.keys(lead.extra_fields)
+      : [],
+  ))].slice(0, 150);
+  const safeCell = (value) => {
+    const result = String(value ?? "").slice(0, 2000);
+    // Evita execução de fórmulas ao abrir células originadas de respostas externas.
+    return /^[\\s]*[=+@-]/.test(result) ? "'" + result : result;
+  };
+  const excelColumn = (n) => {
+    let name = "";
+    for (let x = n; x > 0; x = Math.floor((x - 1) / 26))
+      name = String.fromCharCode(65 + (x - 1) % 26) + name;
+    return name;
+  };
+  const totalColumns = 10 + originalHeaders.length;
+  const lastColumn = excelColumn(totalColumns);
   const sheet = workbook.addWorksheet("Leads Black Friday", {
     views: [{ state: "frozen", ySplit: 4 }],
     pageSetup: {
@@ -37,12 +56,12 @@ export async function GET(request) {
       fitToHeight: 0,
     },
   });
-  sheet.mergeCells("A1:J1");
+  sheet.mergeCells("A1:" + lastColumn + "1");
   sheet.getCell("A1").value = "26fit  |  BLACK FRIDAY 2026";
   sheet.getCell("A1").font = { size: 18, bold: true, color: { argb: "FFFFFFFF" } };
   sheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF171B1E" } };
   sheet.getRow(1).height = 38;
-  sheet.mergeCells("A2:J2");
+  sheet.mergeCells("A2:" + lastColumn + "2");
   sheet.getCell("A2").value =
     "Carteira da unidade: " + unit + " • Uso restrito ao atendimento dos leads da campanha";
   sheet.getCell("A2").font = { size: 11, color: { argb: "FF525C65" }, bold: true };
@@ -58,6 +77,7 @@ export async function GET(request) {
     "CONVERTIDO EM",
     "OBSERVAÇÕES",
     "ABRIR WHATSAPP",
+    ...originalHeaders.map((header) => "ORIGINAL • " + header),
   ];
   sheet.getRow(4).values = headers;
   sheet.getRow(4).height = 28;
@@ -68,6 +88,7 @@ export async function GET(request) {
   });
   const widths = [23, 33, 22, 33, 32, 19, 23, 23, 45, 23];
   widths.forEach((width, i) => (sheet.getColumn(i + 1).width = width));
+  originalHeaders.forEach((_, i) => (sheet.getColumn(i + 11).width = 30));
   rows.forEach((lead, index) => {
     const number = digits(lead.phone);
     const full =
@@ -77,15 +98,16 @@ export async function GET(request) {
     const row = sheet.getRow(index + 5);
     row.values = [
       fmt(lead.response_at),
-      lead.lead_name,
-      lead.phone,
-      lead.email,
-      lead.unit_label,
+      safeCell(lead.lead_name),
+      safeCell(lead.phone),
+      safeCell(lead.email),
+      safeCell(lead.unit_label),
       lead.status.replaceAll("_", " "),
       fmt(lead.contacted_at),
       fmt(lead.converted_at),
-      lead.notes,
+      safeCell(lead.notes),
       "Abrir conversa",
+      ...originalHeaders.map((header) => safeCell(lead.extra_fields?.[header])),
     ];
     row.height = 22;
     row.eachCell((c) => {
@@ -95,10 +117,11 @@ export async function GET(request) {
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F7F9" } };
     });
     row.getCell(3).numFmt = "@";
+    originalHeaders.forEach((_, i) => (row.getCell(i + 11).numFmt = "@"));
     row.getCell(10).value = { text: "Conversar", hyperlink: "https://wa.me/" + full };
     row.getCell(10).font = { color: { argb: "FF175CD3" }, underline: true };
   });
-  sheet.autoFilter = { from: { row: 4, column: 1 }, to: { row: rows.length + 4, column: 10 } };
+  sheet.autoFilter = { from: { row: 4, column: 1 }, to: { row: rows.length + 4, column: totalColumns } };
   sheet.printTitlesRow = "1:4";
   sheet.headerFooter.oddFooter =
     "26fit Central Comercial • Contatos restritos para campanha Black Friday 2026 | Página &P de &N";
