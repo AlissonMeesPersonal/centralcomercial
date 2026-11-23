@@ -36,7 +36,7 @@ export async function GET(request) {
   const safeCell = (value) => {
     const result = String(value ?? "").slice(0, 2000);
     // Evita execução de fórmulas ao abrir células originadas de respostas externas.
-    return /^[\\s]*[=+@-]/.test(result) ? "'" + result : result;
+    return /^\s*[=+@-]/.test(result) ? "'" + result : result;
   };
   const excelColumn = (n) => {
     let name = "";
