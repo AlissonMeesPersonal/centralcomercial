@@ -27,18 +27,27 @@ export async function GET(request) {
   workbook.creator = "26fit Central Comercial";
   workbook.created = new Date();
   workbook.modified = new Date();
-  // Cada coluna recebida do formulário será preservada no Excel da unidade.
-  const originalHeaders = [
-    ...new Set(
-      rows.flatMap((lead) =>
-        lead.extra_fields &&
-        typeof lead.extra_fields === "object" &&
-        !Array.isArray(lead.extra_fields)
-          ? Object.keys(lead.extra_fields)
-          : [],
-      ),
-    ),
-  ].slice(0, 150);
+  // Agrupa os campos equivalentes da origem em uma única coluna.
+  const normalizeHeader = (value) => String(value || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const sourceHeaders = [...new Set(rows.flatMap((lead) =>
+    lead.extra_fields && typeof lead.extra_fields === "object" && !Array.isArray(lead.extra_fields)
+      ? Object.keys(lead.extra_fields)
+      : [],
+  ))].slice(0, 150);
+  const findSource = (pattern) => sourceHeaders.find((header) => pattern.test(normalizeHeader(header)));
+  const cpfHeader = findSource(/\bcpf\b/);
+  const birthHeader = findSource(/nascimento|data de nasc|data nasc/);
+  const addressHeader = findSource(/endereco|logradouro|rua e numero|rua numero/);
+  // Nome, celular, e-mail, unidade e carimbo já possuem colunas padronizadas.
+  const redundantHeader = (header) => {
+    const value = normalizeHeader(header);
+    return /\bcpf\b|nascimento|data de nasc|data nasc|endereco|logradouro|rua e numero|rua numero/.test(value)
+      || /^(nome|nome completo|nome e sobrenome|nome sobrenome|name|telefone|telefone com ddd|celular|whatsapp|fone|phone|e mail|email|unidade|filial|academia|cidade|carimbo de data hora|carimbo data hora|data e hora|data do cadastro|data de cadastro|timestamp)$/.test(value);
+  };
+  const otherHeaders = sourceHeaders.filter((header) => !redundantHeader(header));
+  const sourceValue = (lead, header) => header ? lead.extra_fields?.[header] : "";
   const safeCell = (value) => {
     const result = String(value ?? "").slice(0, 2000);
     // Evita execução de fórmulas ao abrir células originadas de respostas externas.
@@ -50,7 +59,7 @@ export async function GET(request) {
       name = String.fromCharCode(65 + ((x - 1) % 26)) + name;
     return name;
   };
-  const totalColumns = 10 + originalHeaders.length;
+  const totalColumns = 13 + otherHeaders.length;
   const lastColumn = excelColumn(totalColumns);
   const sheet = workbook.addWorksheet("Leads Black Friday", {
     views: [{ state: "frozen", ySplit: 4 }],
@@ -77,13 +86,16 @@ export async function GET(request) {
     "NOME",
     "WHATSAPP",
     "E-MAIL",
+    "CPF",
+    "DATA DE NASCIMENTO",
+    "ENDEREÇO",
     "UNIDADE",
     "SITUAÇÃO",
     "CONTATADO EM",
     "CONVERTIDO EM",
     "OBSERVAÇÕES",
     "ABRIR WHATSAPP",
-    ...originalHeaders.map((header) => "ORIGINAL • " + header),
+    ...otherHeaders,
   ];
   sheet.getRow(4).values = headers;
   sheet.getRow(4).height = 28;
@@ -92,9 +104,9 @@ export async function GET(request) {
     c.font = { bold: true, color: { argb: "FF171B1E" }, size: 10 };
     c.alignment = { vertical: "middle", wrapText: true };
   });
-  const widths = [23, 33, 22, 33, 32, 19, 23, 23, 45, 23];
+  const widths = [23, 33, 22, 33, 20, 23, 45, 32, 19, 23, 23, 45, 23];
   widths.forEach((width, i) => (sheet.getColumn(i + 1).width = width));
-  originalHeaders.forEach((_, i) => (sheet.getColumn(i + 11).width = 30));
+  otherHeaders.forEach((_, i) => (sheet.getColumn(i + 14).width = 30));
   rows.forEach((lead, index) => {
     const number = digits(lead.phone);
     const full =
@@ -104,16 +116,19 @@ export async function GET(request) {
     const row = sheet.getRow(index + 5);
     row.values = [
       fmt(lead.response_at),
-      safeCell(lead.lead_name),
+      safeCell(lead.lead_name || sourceValue(lead, findSource(/^(nome|nome completo|nome e sobrenome)$/))),
       safeCell(lead.phone),
       safeCell(lead.email),
+      safeCell(sourceValue(lead, cpfHeader)),
+      safeCell(sourceValue(lead, birthHeader)),
+      safeCell(sourceValue(lead, addressHeader)),
       safeCell(lead.unit_label),
-      lead.status.replaceAll("_", " "),
+      safeCell(lead.status.replaceAll("_", " ")),
       fmt(lead.contacted_at),
       fmt(lead.converted_at),
       safeCell(lead.notes),
       "Abrir conversa",
-      ...originalHeaders.map((header) => safeCell(lead.extra_fields?.[header])),
+      ...otherHeaders.map((header) => safeCell(sourceValue(lead, header))),
     ];
     row.height = 22;
     row.eachCell((c) => {
@@ -123,9 +138,11 @@ export async function GET(request) {
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F7F9" } };
     });
     row.getCell(3).numFmt = "@";
-    originalHeaders.forEach((_, i) => (row.getCell(i + 11).numFmt = "@"));
-    row.getCell(10).value = { text: "Conversar", hyperlink: "https://wa.me/" + full };
-    row.getCell(10).font = { color: { argb: "FF175CD3" }, underline: true };
+    row.getCell(5).numFmt = "@";
+    row.getCell(6).numFmt = "@";
+    otherHeaders.forEach((_, i) => (row.getCell(i + 14).numFmt = "@"));
+    row.getCell(13).value = { text: "Conversar", hyperlink: "https://wa.me/" + full };
+    row.getCell(13).font = { color: { argb: "FF175CD3" }, underline: true };
   });
   sheet.autoFilter = {
     from: { row: 4, column: 1 },
