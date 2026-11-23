@@ -28,26 +28,43 @@ export async function GET(request) {
   workbook.created = new Date();
   workbook.modified = new Date();
   // Agrupa os campos equivalentes da origem em uma única coluna.
-  const normalizeHeader = (value) => String(value || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ").trim();
-  const sourceHeaders = [...new Set(rows.flatMap((lead) =>
-    lead.extra_fields && typeof lead.extra_fields === "object" && !Array.isArray(lead.extra_fields)
-      ? Object.keys(lead.extra_fields)
-      : [],
-  ))].slice(0, 150);
-  const findSource = (pattern) => sourceHeaders.find((header) => pattern.test(normalizeHeader(header)));
+  const normalizeHeader = (value) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const sourceHeaders = [
+    ...new Set(
+      rows.flatMap((lead) =>
+        lead.extra_fields &&
+        typeof lead.extra_fields === "object" &&
+        !Array.isArray(lead.extra_fields)
+          ? Object.keys(lead.extra_fields)
+          : [],
+      ),
+    ),
+  ].slice(0, 150);
+  const findSource = (pattern) =>
+    sourceHeaders.find((header) => pattern.test(normalizeHeader(header)));
   const cpfHeader = findSource(/\bcpf\b/);
   const birthHeader = findSource(/nascimento|data de nasc|data nasc/);
   const addressHeader = findSource(/endereco|logradouro|rua e numero|rua numero/);
   // Nome, celular, e-mail, unidade e carimbo já possuem colunas padronizadas.
   const redundantHeader = (header) => {
     const value = normalizeHeader(header);
-    return /\bcpf\b|nascimento|data de nasc|data nasc|endereco|logradouro|rua e numero|rua numero/.test(value)
-      || /^(nome|nome completo|nome e sobrenome|nome sobrenome|name|telefone|telefone com ddd|celular|whatsapp|fone|phone|e mail|email|unidade|filial|academia|cidade|carimbo de data hora|carimbo data hora|data e hora|data do cadastro|data de cadastro|timestamp)$/.test(value);
+    return (
+      /\bcpf\b|nascimento|data de nasc|data nasc|endereco|logradouro|rua e numero|rua numero/.test(
+        value,
+      ) ||
+      /^(nome|nome completo|nome e sobrenome|nome sobrenome|name|telefone|telefone com ddd|celular|whatsapp|fone|phone|e mail|email|unidade|filial|academia|cidade|carimbo de data hora|carimbo data hora|data e hora|data do cadastro|data de cadastro|timestamp)$/.test(
+        value,
+      )
+    );
   };
   const otherHeaders = sourceHeaders.filter((header) => !redundantHeader(header));
-  const sourceValue = (lead, header) => header ? lead.extra_fields?.[header] : "";
+  const sourceValue = (lead, header) => (header ? lead.extra_fields?.[header] : "");
   const safeCell = (value) => {
     const result = String(value ?? "").slice(0, 2000);
     // Evita execução de fórmulas ao abrir células originadas de respostas externas.
@@ -116,7 +133,9 @@ export async function GET(request) {
     const row = sheet.getRow(index + 5);
     row.values = [
       fmt(lead.response_at),
-      safeCell(lead.lead_name || sourceValue(lead, findSource(/^(nome|nome completo|nome e sobrenome)$/))),
+      safeCell(
+        lead.lead_name || sourceValue(lead, findSource(/^(nome|nome completo|nome e sobrenome)$/)),
+      ),
       safeCell(lead.phone),
       safeCell(lead.email),
       safeCell(sourceValue(lead, cpfHeader)),
