@@ -361,6 +361,12 @@ export default function BlackFridayDashboard({ isDeveloper = false }) {
         unit,
         email,
         responseAt,
+        extraFields: Object.fromEntries(
+          header.map((column, index) => [
+            String(column || "Coluna " + (index + 1)).slice(0, 160),
+            String(row[index] ?? "").slice(0, 2000),
+          ]),
+        ),
         sourceKey: responseAt + "|" + phone + "|" + norm(unit) + "|" + norm(name),
       });
     });
@@ -384,8 +390,8 @@ export default function BlackFridayDashboard({ isDeveloper = false }) {
     try {
       let total = 0;
       const items = preview.leads;
-      for (let i = 0; i < items.length; i += 250) {
-        const slice = items.slice(i, i + 250);
+      for (let i = 0; i < items.length; i += 75) {
+        const slice = items.slice(i, i + 75);
         setProgress(
           "Importando " +
             Math.min(i + slice.length, items.length) +
