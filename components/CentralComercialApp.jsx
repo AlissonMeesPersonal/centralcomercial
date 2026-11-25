@@ -15,6 +15,7 @@ import TeamAttendeePicker from "./TeamAttendeePicker";
 import CalendarAlertsBell from "./CalendarAlertsBell";
 import ReminderCenter from "./ReminderCenter";
 import DailyDemandReminder from "./DailyDemandReminder";
+import SessionInactivityGuard from "./SessionInactivityGuard";
 import { authClient } from "../lib/auth/client";
 import { OFFICIAL_UNITS, mergeOfficialUnits } from "../data/official-units";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -471,6 +472,7 @@ export default function Home({ accessRole, userEmail }) {
       try {
         window.sessionStorage.removeItem("26fit-central-active-section-v1");
         window.sessionStorage.removeItem("cc-reminder-notification-onboarding-v1");
+        window.localStorage.removeItem("cc-central-last-activity-v1:" + String(userEmail || "").toLowerCase());
       } catch {}
       // A URL antiga (ex.: ?page=manage-units) não deve continuar após o logout.
       try {
@@ -1532,6 +1534,7 @@ export default function Home({ accessRole, userEmail }) {
   if (!ready)
     return (
       <main className="boot">
+        <SessionInactivityGuard userEmail={userEmail} onExpire={handleSignOut} />
         {syncState.status === "error" ? (
           <div className="cc-sync-boot-error">
             <CircleAlert size={26} />
@@ -1551,6 +1554,7 @@ export default function Home({ accessRole, userEmail }) {
     );
   return (
     <div className="shell">
+      <SessionInactivityGuard userEmail={userEmail} onExpire={handleSignOut} />
       <aside className={"sidebar " + (mobile ? "mobile-open" : "")}>
         <div className="brand">
           <div className="brand-logo">
