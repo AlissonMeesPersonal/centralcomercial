@@ -13,7 +13,9 @@ export default function SessionInactivityGuard({ userEmail, onExpire }) {
   onExpireRef.current = onExpire;
 
   useEffect(() => {
-    const identity = String(userEmail || "").trim().toLowerCase();
+    const identity = String(userEmail || "")
+      .trim()
+      .toLowerCase();
     if (!identity) return;
 
     const storageKey = "cc-central-last-activity-v1:" + identity;

@@ -472,7 +472,9 @@ export default function Home({ accessRole, userEmail }) {
       try {
         window.sessionStorage.removeItem("26fit-central-active-section-v1");
         window.sessionStorage.removeItem("cc-reminder-notification-onboarding-v1");
-        window.localStorage.removeItem("cc-central-last-activity-v1:" + String(userEmail || "").toLowerCase());
+        window.localStorage.removeItem(
+          "cc-central-last-activity-v1:" + String(userEmail || "").toLowerCase(),
+        );
       } catch {}
       // A URL antiga (ex.: ?page=manage-units) não deve continuar após o logout.
       try {
