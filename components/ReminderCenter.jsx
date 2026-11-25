@@ -19,7 +19,7 @@ const dateTime = (value) =>
 const destination = (id) => "/?section=calendar&reminder=" + encodeURIComponent(id);
 const ONBOARDING_SESSION_KEY = "cc-reminder-notification-onboarding-v1";
 
-export default function ReminderCenter({ onOpenReminder, accessRole }) {
+export default function ReminderCenter({ onOpenReminder }) {
   const [permission, setPermission] = useState("checking");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -237,25 +237,10 @@ export default function ReminderCenter({ onOpenReminder, accessRole }) {
 
     window.addEventListener("26fit:test-calendar-notifications", handleTest);
 
-    // Demonstração solicitada: dispara uma vez por sessão na conta do desenvolvedor.
-    // Não cria reunião real e não envia nada a outros usuários.
-    let testTimer;
-    if (accessRole === "developer") {
-      const testKey = "cc-calendar-meeting-test-20261120-v1";
-      try {
-        if (window.sessionStorage.getItem(testKey) !== "shown") {
-          window.sessionStorage.setItem(testKey, "shown");
-          testTimer = window.setTimeout(handleTest, 1800);
-        }
-      } catch {
-        testTimer = window.setTimeout(handleTest, 1800);
-      }
-    }
     return () => {
       window.removeEventListener("26fit:test-calendar-notifications", handleTest);
-      if (testTimer) window.clearTimeout(testTimer);
     };
-  }, [accessRole]);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
